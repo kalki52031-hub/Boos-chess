@@ -1,0 +1,2934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>3D Chess Game – PRO MAX Video Call + Multiplayer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg-dark: #020617;
+      --accent: #38bdf8;
+      --gold: #facc15;
+      --glass: rgba(15,23,42,0.9);
+      --light-square: #f0d9b5;
+      --dark-square: #b58863;
+      --mic-on: #10b981;
+      --mic-off: #ef4444;
+      --popup-bg: #1f2937;
+      --popup-text: #e5e7eb;
+      --popup-border: #4b5563;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body{
+      min-height:100vh; padding:16px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background:
+        radial-gradient(circle at 0% 0%, #1f2937 0, #020617 50%),
+        radial-gradient(circle at 100% 100%, #0f172a 0, #020617 60%);
+      color:#e5e7eb;
+      display:flex; flex-direction:column; align-items:center; gap:12px;
+    }
+    h1{
+      font-size:22px; text-transform:uppercase; letter-spacing:.12em;
+      background: linear-gradient(120deg,#e5e7eb,#facc15,#e5e7eb);
+      -webkit-background-clip:text; color:transparent;
+      text-shadow:0 2px 8px rgba(0,0,0,.8);
+    }
+    .subtitle{ font-size:11px; text-transform:uppercase; color:#9ca3af; letter-spacing:.18em; }
+
+    .board-shell{ width:360px; max-width:95vw; perspective:900px; position: relative;}
+    .board-frame{
+      width:100%; padding:10px; border-radius:20px;
+      background: linear-gradient(135deg,#020617,#111827);
+      box-shadow:0 26px 40px rgba(0,0,0,.95), inset 0 0 0 1px rgba(148,163,184,.25);
+      transform: rotateX(12deg); transform-origin:center top;
+    }
+    .board{
+      width:100%; padding-bottom:100%; position:relative;
+      border-radius:14px; overflow:hidden;
+      box-shadow:0 14px 30px rgba(0,0,0,.95), inset 0 0 0 1px rgba(15,23,42,.9);
+      background:#d1d5db;
+    }
+    .square{ position:absolute; width:12.5%; height:12.5%; display:flex; align-items:center; justify-content:center; cursor:pointer; user-select:none; transition: transform .08s ease-out, box-shadow .12s ease-out, filter .12s ease-out; font-size:28px; }
+    .square.light{ background:var(--light-square); } .square.dark { background:var(--dark-square); }
+    .square:active{ transform:scale(.96); box-shadow: inset 0 3px 10px rgba(0,0,0,.9); }
+    .piece{ text-shadow:0 2px 4px rgba(0,0,0,.85),0 0 8px rgba(0,0,0,.8); }
+    
+    .piece.white{ color:#fefce8; text-shadow:0 1px 2px rgba(0,0,0,.7),0 0 6px rgba(250,204,21,.9); } 
+    .piece.black{ color:#020617; text-shadow:0 1px 1px rgba(255,255,255,.4),0 0 4px rgba(0,0,0,.9); } 
+
+    /* --- PIECE IMAGE: Original Color --- */
+    .piece-img{ 
+        width:80%; height:80%; object-fit:contain; background:none !important; 
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,.85)); 
+        transition: transform .24s ease; 
+    }
+    .piece-img.white-side, .piece-img.black-side { filter: none !important; }
+    /* ----------------------------------- */
+    
+    .selected{ outline:3px solid var(--gold); outline-offset:-3px; filter:brightness(1.05); }
+    .last-move{ box-shadow: inset 0 0 0 3px #34d399, 0 0 14px rgba(34,197,94,.9); }
+    .hint-move{ box-shadow: inset 0 0 0 3px rgba(56,189,248,.9); } .hint-capture{ box-shadow: inset 0 0 0 3px rgba(248,113,113,.95); }
+    .illegal{ animation: shake .18s; } @keyframes shake{ 0%{transform:translateX(0)} 25%{transform:translateX(-3px)} 50%{transform:translateX(3px)} 75%{transform:translateX(-2px)} 100%{transform:translateX(0)} }
+
+    .panel{ width:100%; max-width:360px; background:var(--glass); padding:10px 14px; border-radius:16px; box-shadow:0 16px 30px rgba(0,0,0,.9), inset 0 0 0 1px rgba(148,163,184,.2); backdrop-filter:blur(14px); position: relative; }
+    .panel-header{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+    .label{ font-size:11px; color:#9ca3af; text-transform:uppercase; letter-spacing:.18em; } .status-text{ font-size:14px; }
+    .panel-buttons{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; margin-bottom:4px; justify-content:flex-start; }
+    button{ background: linear-gradient(135deg,#3b82f6,#2563eb); color:#fff; border:none; padding:6px 12px; border-radius:999px; font-size:13px; box-shadow:0 4px 10px rgba(37,99,235,.7); cursor:pointer; }
+    button.small{ font-size:11px; padding:4px 10px; }
+    .timers{ display:flex; justify-content:space-between; gap:10px; margin-top:6px; margin-bottom:4px; }
+    .timer-box{ flex:1; padding:6px 8px; border-radius:10px; background:rgba(15,23,42,.85); }
+    .timer-name{ font-size:11px; text-transform:uppercase; letter-spacing:.12em; } .timer-value{ font-variant-numeric: tabular-nums; font-size:16px; }
+    .timer-active{ box-shadow: 0 0 0 1px rgba(56,189,248,.7), 0 0 12px rgba(56,189,248,.7); }
+
+    #movesList{ max-height:150px; overflow-y:auto; font-size:12px; line-height:1.4; } .move-row{ display:flex; gap:6px; } .move-index{ width:26px; color:#9ca3af; }
+    .bot-settings{ display:flex; flex-direction:column; gap:6px; margin-top:4px; font-size:12px; } .bot-row{ display:flex; justify-content:space-between; align-items:center; gap:8px; } .bot-row label{ font-size:11px; color:#d1d5db; } .bot-row select{ flex:1; background:#020617; border-radius:999px; border:1px solid #4b5563; padding:3px 8px; color:#e5e7eb; font-size:11px; outline:none; }
+    .about-text{ font-size:12px; line-height:1.5; margin-top:6px; } .about-text ul{ margin:4px 0 0 16px; padding:0; } .about-text li{ margin-bottom:2px; }
+    .online-list{ margin-top:4px; font-size:12px; background:rgba(15,23,42,0.8); border-radius:10px; padding:6px 8px; max-height:180px; overflow-y:auto; } .online-item{ display:flex; justify-content:space-between; margin-bottom:6px; align-items:center; gap:8px; } .online-status{ font-size:10px; text-transform:uppercase; letter-spacing:.12em; } .online-status.on{ color:#4ade80; } .online-status.busy{ color:#facc15; }
+
+    .invite-btn{ background:linear-gradient(135deg,#10b981,#059669); box-shadow:0 4px 10px rgba(5,150,105,.6); }
+    .incoming-invite{ background:rgba(255,255,255,0.03); padding:6px 8px; border-radius:8px; display:flex; gap:8px; align-items:center; }
+
+    /* Mic button styling */
+    .mic-btn{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:13px;
+      cursor:pointer;
+      border:1px solid rgba(255,255,255,0.06);
+      background: linear-gradient(135deg,#111827,#0b1220);
+      color:#e5e7eb;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+    }
+    .mic-btn .dot{
+      width:10px; height:10px; border-radius:50%; display:inline-block;
+      box-shadow: 0 0 6px rgba(0,0,0,0.6);
+    }
+    .mic-on .dot{ background: var(--mic-on); }
+    .mic-off .dot{ background: var(--mic-off); }
+
+    /* --- Invite Overlay (New Popup) --- */
+    #inviteOverlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: none; 
+      justify-content: center;
+      align-items: center;
+      z-index: 10000; 
+      backdrop-filter: blur(4px);
+      transition: opacity .3s ease;
+      opacity: 0;
+    }
+    #inviteOverlay.show { opacity: 1; display: flex; }
+    #invitePopup {
+      background: var(--popup-bg);
+      color: var(--popup-text);
+      padding: 24px;
+      border-radius: 16px;
+      text-align: center;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.9);
+      border: 1px solid var(--popup-border);
+      min-width: 280px;
+      max-width: 90vw;
+      transform: translateY(20px);
+      transition: transform .3s ease, opacity .3s ease;
+    }
+    #inviteOverlay.show #invitePopup { transform: translateY(0); }
+    #invitePopup h2 { font-size: 20px; margin-bottom: 10px; color: var(--gold); }
+    #invitePopup p { font-size: 14px; margin-bottom: 20px; color: #d1d5db; }
+    #invitePopup .invite-info { font-size: 13px; margin-bottom: 16px; line-height: 1.6; }
+    #invitePopup .invite-info strong { color: var(--accent); }
+    #invitePopup button {
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 14px;
+      cursor: pointer;
+      margin: 0 5px;
+    }
+    #acceptBtn { background: linear-gradient(135deg,#10b981,#059669); box-shadow:0 4px 10px rgba(5,150,105,.6); color: #fff; border: none; }
+    #declineBtn { background: #dc2626; box-shadow:0 4px 10px rgba(220,38,38,.6); color: #fff; border: none; }
+    /* --- End New Popup --- */
+
+    /* --- PRO MAX UPGRADE: Video Call Styling --- */
+    #videoCallContainer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: none; /* Hide by default */
+        pointer-events: none; /* Allows clicks to go through to board */
+        z-index: 50; /* Above the board, below the overlay */
+    }
+    #videoCallContainer.active {
+        display: block;
+    }
+    .remote-video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 14px;
+        transform: rotateY(180deg); /* Mirror remote video */
+    }
+    .local-video-box {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 80px; /* Small inset video */
+        height: 60px;
+        border: 2px solid var(--accent);
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 0 10px rgba(0,0,0,0.8);
+        pointer-events: auto; /* Can be interacted with */
+    }
+    .local-video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: rotateY(180deg); /* Mirror local video */
+    }
+    /* --------------------------------------------- */
+
+  </style>
+</head>
+<body>
+  <h1>3D Chess Game</h1>
+  <div class="subtitle">Your 3D Pieces • Local Game</div>
+
+  <div id="loginContainer" class="panel" style="max-width:360px; margin-top:0;">
+    </div>
+  <div style="margin-bottom:6px;">
+    <button id="modeBtn" class="small">Mode: 2P</button>
+  </div>
+
+  <div id="playerProfileTop" class="panel" style="display:flex;align-items:center;gap:10px;">
+    <img id="playerAvatarTop" src="" alt="Avatar" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.08);box-shadow:0 4px 10px rgba(0,0,0,0.6);" />
+    <div style="flex:1;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <input id="playerNameInput" type="text" placeholder="Apna naam daalo..." style="flex:1;padding:6px;border-radius:8px;border:1px solid #374151;background:rgba(255,255,255,0.03);color:#e5e7eb;" />
+        <button id="saveNameBtn" class="small">Naam Save Karo (1)</button>
+      </div>
+      <div style="margin-top:6px;font-size:13px;color:#d1d5db;">
+        <span id="playerNameDisplay">Player 1: —</span>
+        <span style="margin-left:12px;">Rating: <strong id="playerRatingDisplay">1200</strong></span>
+        <button id="resetRatingBtn" class="small" style="margin-left:8px;">Rating Reset</button>
+        <button id="incRatingBtn" class="small" style="margin-left:4px;">+10</button>
+      </div>
+
+      <div style="margin-top:8px;">
+        <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">Level / XP</div>
+        <div style="background:#0f172a;border-radius:999px;padding:6px;display:flex;align-items:center;gap:8px;">
+          <div style="flex:1;background:#111827;border-radius:999px;height:10px;overflow:hidden;">
+            <div id="xpBar" style="height:10px;width:0%;background:linear-gradient(90deg,#facc15,#38bdf8);"></div>
+          </div>
+          <div style="min-width:80px;font-size:12px;color:#e5e7eb;margin-left:6px;">
+            <span id="levelDisplay">Lv 1</span> (<span id="xpDisplay">0</span>/<span id="xpForNext">100</span>)
+          </div>
+          <div style="display:flex;gap:6px;margin-left:8px;">
+            <button id="addXpBtn" class="small">+10 XP</button>
+            <button id="addXpBigBtn" class="small">+40 XP</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <input id="avatarFileInput" type="file" accept="image/*" style="display:none" />
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+      <button id="changeAvatarBtn" class="small">Photo Change (1)</button>
+      <button id="micTopBtn" class="small mic-btn mic-off" aria-pressed="false" title="Mic off">
+        <span class="dot"></span><span class="mic-label">Mic Off</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="board-shell">
+    <div class="board-frame">
+      <div id="board" class="board"></div>
+      
+      <div id="videoCallContainer">
+          <div class="local-video-box">
+              <video id="localVideo" class="local-video" autoplay muted playsinline></video>
+          </div>
+      </div>
+      </div>
+  </div>
+
+  <div id="playerProfileBottom" class="panel" style="display:flex;align-items:flex-start;gap:10px;margin-top:8px;">
+    <img id="playerAvatarBottom" src="" alt="Avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.06);" />
+    <div style="flex:1;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <input id="bottomNameInput" type="text" placeholder="Dusre player ka naam..." style="flex:1;padding:6px;border-radius:8px;border:1px solid #374151;background:rgba(255,255,255,0.03);color:#e5e7eb;font-size:12px;">
+        <button id="saveNameBottomBtn" class="small">Naam Save Karo (2)</button>
+      </div>
+      <div style="margin-top:6px;font-size:14px;color:#e5e7eb;">
+        <strong id="playerNameBottom">Player 2 —</strong>
+      </div>
+      <div style="font-size:12px;color:#9ca3af;">Rating: <span id="playerRatingBottom">1200</span> • <span id="levelBottom">Lv 1</span></div>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+        <button id="viewProfileBtn" class="small">Profile Info (2)</button>
+        <button id="resetProfileBtn" class="small">Reset Profile (2)</button>
+      </div>
+    </div>
+
+    <input id="avatarBottomFileInput" type="file" accept="image/*" style="display:none" />
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+      <button id="changeAvatarBottomBtn" class="small">Photo Change (2)</button>
+      <button id="micBottomBtn" class="small mic-btn mic-off" aria-pressed="false" title="Mic off">
+        <span class="dot"></span><span class="mic-label">Mic Off</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="label">Status</div>
+      <div class="tagline">Tap a piece, then tap destination square</div>
+    </div>
+    <div id="status" class="status-text">White to move</div>
+
+    <div class="timers">
+      <div id="whiteTimerBox" class="timer-box timer-active">
+        <div class="timer-name white">White</div>
+        <div id="whiteTimer" class="timer-value">00:00</div>
+      </div>
+      <div id="blackTimerBox" class="timer-box">
+        <div class="timer-name black">Black</div>
+        <div id="blackTimer" class="timer-value">00:00</div>
+      </div>
+    </div>
+
+    <div class="panel-buttons">
+      <button id="resetBtn">New game</button>
+      <button id="undoBtn" class="small">Undo</button>
+      <button id="pieceBtn" class="small">Pieces: 3D</button>
+      <button id="hintBtn" class="small">Hints: ON</button>
+      <button id="soundBtn" class="small">Sound: ON</button>
+      <button id="bestMoveBtn" class="small">Best Move</button>
+      <button id="flipBtn" class="small">Flip</button>
+      
+      <button id="videoToggleBtn" class="small" style="background:#facc15; color: #020617;">Video: OFF</button>
+    </div>
+
+    <div class="panel-header" style="margin-top:6px;">
+      <div class="label">Moves</div>
+    </div>
+    <div id="movesList">No moves yet</div>
+  </div>
+
+  <div class="panel">
+    <div class="label">Bot Settings</div>
+    <div class="bot-settings">
+      <div class="bot-row">
+        <label for="difficultySelect">Difficulty</label>
+        <select id="difficultySelect">
+          <option value="Easy">Easy</option>
+          <option value="Medium" selected>Medium</option>
+          <option value="Hard">Hard</option>
+          <option value="Killer">Killer</option>
+        </select>
+      </div>
+      <div class="bot-row">
+        <label for="openingSelect">Opening</label>
+        <select id="openingSelect">
+          <option value="Auto" selected>Auto</option>
+          <option value="Sicilian">Sicilian vs e4</option>
+          <option value="DragonSicilian">Dragon Sicilian vs e4</option>
+          <option value="NajdorfSicilian">Najdorf Sicilian vs e4</option>
+          <option value="Classical">Classical e5 vs e4</option>
+          <option value="French">French e6 vs e4</option>
+          <option value="CaroKann">Caro-Kann c6 vs e4</option>
+          <option value="RuyLopez">Ruy-Lopez (Spanish) vs e4</option>
+          <option value="QGD">QGD d5 vs d4</option>
+          <option value="KingsIndian">King's Indian Nf6 vs d4</option>
+          <option value="BenkoGambit">Benko Gambit vs d4</option>
+          <option value="LondonSystemWhite">London System (White idea)</option>
+          <option value="RandomBook">Random Book</option>
+        </select>
+      </div>
+      <div class="bot-row">
+        <label for="aggressionSelect">Aggression</label>
+        <select id="aggressionSelect">
+          <option value="Solid">Solid</option>
+          <option value="Balanced" selected>Balanced</option>
+          <option value="Aggressive">Aggressive</option>
+        </select>
+      </div>
+      <div class="bot-row">
+        <label for="defenseSelect">Defense</label>
+        <select id="defenseSelect">
+          <option value="Solid" selected>Solid</option>
+          <option value="Counter">Counter</option>
+          <option value="Gambit">Gambit-style</option>
+        </select>
+      </div>
+      <div class="bot-row">
+        <label for="personalitySelect">Bot Personality</label>
+        <select id="personalitySelect">
+          <option value="Balanced" selected>Balanced</option>
+          <option value="Chill">Chill Bot</option>
+          <option value="Attacker">Attacker Bot</option>
+          <option value="Gambit">Gambit Bot</option>
+        </select>
+      </div>
+      <div class="bot-row">
+        <label for="timeControlSelect">Time Control</label>
+        <select id="timeControlSelect">
+          <option value="none" selected>No Limit</option>
+          <option value="bullet1">Bullet 1 min</option>
+          <option value="blitz3">Blitz 3 min</option>
+          <option value="blitz5">Blitz 5 min</option>
+          <option value="rapid10">Rapid 10 min</option>
+        </select>
+      </div>
+      <div class="bot-row">
+        <label for="incrementSelect">Increment</label>
+        <select id="incrementSelect">
+          <option value="0" selected>0 sec</option>
+          <option value="1">+1 sec</option>
+          <option value="2">+2 sec</option>
+          <option value="5">+5 sec</option>
+        </select>
+      </div>
+    </div>
+    <div class="tagline">Difficulty = Strength • Personality = Style • Time Control = Bullet / Blitz / Rapid + Increment.</div>
+  </div>
+
+  <div class="panel">
+    <div class="label">Player Rating / Stats (Vs Bot)</div>
+    <div class="about-text">
+      Wins: <span id="winsCount">0</span><br>
+      Losses: <span id="lossesCount">0</span><br>
+      Draws: <span id="drawsCount">0</span><br>
+      Current Streak: <span id="currentStreak">0</span><br>
+      Best Streak: <span id="bestStreak">0</span>
+    </div>
+    <div class="panel-buttons">
+      <button id="resetStatsBtn" class="small">Reset Stats</button>
+    </div>
+    <div class="tagline">Stats sirf Vs Bot ke liye (page reload tak).</div>
+  </div>
+
+  <div class="panel">
+    <div class="label">Friends & Online (Game ke andar)</div>
+    <div class="about-text">
+      <div style="margin-bottom:6px;">Yeh pura system <strong>tumhare game ke andar</strong> hai. Login kar ke real invites ka istemal karo.</div>
+
+      <div style="margin-top:4px;font-size:11px;color:#9ca3af;">Your Unique Game ID:</div>
+      <div style="display:flex;gap:6px;margin-top:4px;align-items:center;">
+        <input id="myId" type="text" readonly style="flex:1;padding:6px;border-radius:8px;border:1px solid #374151;background:rgba(15,23,42,0.9);color:#e5e7eb;font-size:12px;">
+        <button id="copyIdBtn" class="small">Copy ID</button>
+      </div>
+
+      <div style="margin-top:10px;font-size:11px;color:#9ca3af;">Friend ko Invite (ID se):</div>
+      <div style="margin-top:4px;display:flex;gap:6px;align-items:center;">
+        <input id="friendIdInput" type="text" placeholder="Friend ka Game ID..." style="flex:1;padding:6px;border-radius:8px;border:1px solid #374151;background:rgba(255,255,255,0.03);color:#e5e7eb;font-size:12px;">
+        <button id="inviteFriendBtn" class="small invite-btn">Invite</button>
+      </div>
+
+      <div style="margin-top:10px;font-size:11px;color:#9ca3af;">Ya Invite by Email (Gmail):</div>
+      <div style="margin-top:4px;display:flex;gap:6px;align-items:center;">
+        <input id="friendEmailInput" type="email" placeholder="friend@example.com" style="flex:1;padding:6px;border-radius:8px;border:1px solid #374151;background:rgba(255,255,255,0.03);color:#e5e7eb;font-size:12px;">
+        <button id="inviteEmailBtn" class="small invite-btn">Invite Email</button>
+      </div>
+
+      <div id="onlineStatus" class="tagline" style="margin-top:6px;">Connecting to Firebase…</div>
+
+      <div style="margin-top:10px;font-size:11px;color:#9ca3af;">Incoming Invites:</div>
+      <div class="online-list" id="incomingInvites"></div>
+
+      <div class="tagline" style="margin-top:8px;">Only one invite system — accepts both Game ID and Email lookups.</div>
+    </div>
+  </div>
+
+  <audio id="moveSound" src="move-sound.mp3" preload="auto"></audio>
+  <audio id="inviteSound" src="invite-sound.mp3" preload="auto"></audio>
+
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging-compat.js"></script>
+
+  <script>
+   // FIX: Updated configuration details and VAPID key based on user input
+const FCM_VAPID_KEY = "BKkGevcSinff8nwB5IcRopyD9klHKS6CvjlSsGUMOMc8w1ro4EFppkghLHRf8x4ktmgCDztZ9y7LeyPNfOm51d4";
+const firebaseConfig = {
+  apiKey: "AIzaSyB33UgkoyYezqGeyYEKBE5BMUfQrxe3-PE",
+  authDomain: "bosschess-c9791.firebaseapp.com",
+  databaseURL: "https://bosschess-c9791-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "bosschess-c9791",
+  storageBucket: "bosschess-c9791.firebasestorage.app", // FIX: Updated storageBucket based on provided config
+  messagingSenderId: "325067489020",
+  appId: "1:325067489020:web:8b9321149b9aedd0286179",
+  measurementId: "G-5BDQG9QJMB"
+};
+
+
+(function(){
+  const loginContainer = document.getElementById("loginContainer");
+  const myIdEl = document.getElementById('myId');
+  const inviteFriendBtn = document.getElementById('inviteFriendBtn');
+  const friendIdInput = document.getElementById('friendIdInput');
+  const inviteEmailBtn = document.getElementById('inviteEmailBtn');
+  const friendEmailInput = document.getElementById('friendEmailInput');
+  const incomingInvitesEl = document.getElementById('incomingInvites');
+  const onlineStatus = document.getElementById('onlineStatus');
+
+  /* --- NEW POPUP OVERLAY REFS --- */
+  const inviteOverlay = document.getElementById('inviteOverlay');
+  const invitePopup = document.getElementById('invitePopup'); // Changed to use the outer div
+  const acceptBtn = document.getElementById('acceptBtn');
+  const declineBtn = document.getElementById('declineBtn');
+  /* --- END NEW POPUP REFS --- */
+
+  // **EDIT 1: Initial Login/Firebase Status Check**
+  if (typeof firebase === "undefined") {
+    if (loginContainer) {
+      loginContainer.innerHTML = '<div style="font-size:13px;color:#fca5a5;">Firebase SDK not loaded — real invites unavailable.</div>';
+    }
+    onlineStatus.textContent = 'Firebase SDK missing — real invites unavailable.';
+    if(inviteFriendBtn) inviteFriendBtn.addEventListener('click', ()=> { onlineStatus.textContent = 'Cannot send invite: Firebase not loaded.'; });
+    if(inviteEmailBtn) inviteEmailBtn.addEventListener('click', ()=> { onlineStatus.textContent = 'Cannot send invite: Firebase not loaded.'; });
+    return;
+  } else {
+    // Set loading message for the main login container
+    if (loginContainer) {
+      loginContainer.innerHTML = '<span style="font-size:13px;color:#9ca3af;">Initializing Firebase...</span>';
+    }
+  }
+
+
+  try {
+    if (!firebase.apps || firebase.apps.length === 0) {
+      firebase.initializeApp(firebaseConfig);
+    }
+
+    const auth = firebase.auth();
+    const db = firebase.database();
+    let messaging = null;
+    try{
+      messaging = firebase.messaging();
+    }catch(e){
+      console.warn('FCM not available in this environment', e);
+      messaging = null;
+    }
+
+    // --- helper: ensure myId exists right away (used by invites listener) ---
+    function generateIdLocal(){
+      const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+      let part1 = "";
+      for(let i=0;i<4;i++){
+        part1 += letters[Math.floor(Math.random()*letters.length)];
+      }
+      const part2 = String(Math.floor(1000 + Math.random()*9000));
+      return part1 + "-" + part2;
+    }
+    const MY_ID_STORAGE_KEY = "chess_game_my_id_v1";
+    function getOrCreateMyId(){
+      try{
+        let saved = null;
+        try{ saved = localStorage.getItem(MY_ID_STORAGE_KEY); }catch(e){}
+        if(saved && saved.trim()){
+          if(myIdEl) myIdEl.value = saved.trim();
+          return saved.trim();
+        }
+        const id = generateIdLocal();
+        try{ localStorage.setItem(MY_ID_STORAGE_KEY, id); }catch(e){}
+        if(myIdEl) myIdEl.value = id;
+        return id;
+      }catch(e){
+        const id = generateIdLocal();
+        if(myIdEl) myIdEl.value = id;
+        return id;
+      }
+    }
+
+    const ensuredMyId = getOrCreateMyId();
+
+    // encode helpers
+    function encodeId(id){ return (''+id).replace(/[^a-zA-Z0-9_-]/g, '_'); }
+    function encodeEmail(em){ return (''+em).toLowerCase().replace(/[^a-z0-9@._-]/g, '_'); }
+
+    // ----- FCM helpers: request permission, getToken, store token to DB -----
+    async function requestNotificationPermissionAndSaveToken(){
+      if(!messaging) return null;
+      try{
+        // check permission
+        let permission = Notification.permission;
+        if(permission !== 'granted'){
+          permission = await Notification.requestPermission();
+        }
+        if(permission !== 'granted') {
+          console.warn('Notification permission not granted');
+          return null;
+        }
+
+        // get token (vapidKey needed)
+        const token = await messaging.getToken({ vapidKey: FCM_VAPID_KEY });
+        if(!token) {
+          console.warn('FCM token not obtained');
+          return null;
+        }
+        // save token to DB for this gameId (and email when available)
+        const gid = (myIdEl && myIdEl.value) ? myIdEl.value : getOrCreateMyId();
+        if(gid){
+          try{ await db.ref('fcm_tokens_by_gameid/' + encodeId(gid) + '/' + token).set({ token, createdAt: Date.now() }); }catch(e){ console.warn('save token by gameId failed', e); }
+        }
+        const user = auth.currentUser;
+        if(user && user.email){
+          try{ await db.ref('fcm_tokens_by_email/' + encodeEmail(user.email) + '/' + token).set({ token, uid: user.uid, createdAt: Date.now() }); }catch(e){ console.warn('save token by email failed', e); }
+        }
+        // also store mapping locally
+        try{
+          const saved = JSON.parse(localStorage.getItem('fcm_tokens_local_v1') || '{}');
+          saved[token] = Date.now();
+          localStorage.setItem('fcm_tokens_local_v1', JSON.stringify(saved));
+        }catch(e){}
+        console.log('FCM token saved to DB', token);
+        return token;
+      }catch(e){
+        console.warn('requestNotificationPermissionAndSaveToken failed', e);
+        return null;
+      }
+    }
+
+    // foreground message handler — show toast like incoming invite
+    if(messaging){
+      messaging.onMessage(payload => {
+        // payload maybe from server; try to display invite-like toast
+        console.log('FCM foreground message', payload);
+        const title = (payload.notification && payload.notification.title) || (payload.data && payload.data.title) || 'Invite';
+        const body  = (payload.notification && payload.notification.body)  || (payload.data && payload.data.body) || 'Join my game';
+        // show invite popup using your existing UI
+        // NOTE: we don't handle FCM invite here because the RTDB listener will trigger the popup anyway.
+        // This is only for the case where RTDB listener fails but FCM push comes through.
+        try{
+          // Simple local notification/alert for FCM message if the main RTDB listener failed
+          console.log(`FCM Invite: ${title} - ${body}`);
+          // Fallback popup if main listener is down
+          if(!window.currentPopupInvite){ // Check the global from popup helpers
+             window.showInvitePopup({ inviteId: 'FCM_PUSH', fromName: title, msg: body, fromGameId: 'FCM' }, 'FCM_PUSH');
+             if(window && window.setTimeout) setTimeout(()=>{ window.hideInvitePopup(); }, 3500);
+          }
+        }catch(e){
+          console.warn('show toast failed', e);
+        }
+      });
+    }
+
+    // Google Sign-in (popup) & signout helpers (exposed)
+    window.signInWithGoogle = async function() {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      try {
+        // FIX: Added error checking for popup state
+        const result = await auth.signInWithPopup(provider);
+        console.log("Google Login Successful:", result.user.displayName, result.user.uid);
+      } catch (error) {
+        console.error("Google Login Failed:", error);
+        // FIX: Display a more specific message if login fails due to popup blocking/cancellation
+        if (error.code === "auth/popup-closed-by-user") {
+          alert("Login Failed: Popup closed by user.");
+        } else if (error.code === "auth/cancelled-popup-request") {
+          alert("Login Failed: Please allow popups or try again shortly.");
+        } else {
+          alert("Login Failed: " + error.message);
+        }
+      }
+    };
+    window.signOutUser = async function() {
+      try { await auth.signOut(); } catch(e){ console.warn(e); }
+    };
+
+    // ---------- Invite system (by Game ID) ----------
+    async function sendInviteByGameId(toGameId, message){
+      if(!toGameId) { onlineStatus.textContent = 'Specify a valid Game ID'; return; }
+      const fromGameId = (myIdEl && myIdEl.value) ? myIdEl.value : getOrCreateMyId();
+      const user = auth.currentUser;
+      const fromName = user ? (user.displayName || user.email || fromGameId) : (localStorage.getItem('chess_player_profile_top_v1') ? JSON.parse(localStorage.getItem('chess_player_profile_top_v1')).name : fromGameId);
+      const now = Date.now();
+      
+      // **EDIT 2: Create a custom roomId and rule-safe inviteId**
+      const roomId = 'room-' + Math.random().toString(36).slice(2,9); // Generate Room ID now
+      const inviteId = db.ref().push().key;
+       // Rule-Safe ID: [ReceiverGameID]++[RoomID]
+
+      const inviteObj = {
+        fromGameId,
+        fromUid: user ? user.uid : null,
+        fromName: fromName || null,
+        msg: message || '',
+        status: 'pending',
+        sentAt: now,
+        roomId: roomId // Store roomId inside the invite for easy retrieval upon acceptance
+      };
+      
+      const updates = {};
+      // FIX: Use the custom inviteId instead of push().key
+      updates['invites_by_gameid/' + encodeId(toGameId) + '/' + inviteId] = inviteObj;
+      updates['outgoing_by_gameid/' + encodeId(fromGameId) + '/' + inviteId] = { toGameId: toGameId, ...inviteObj };
+      await db.ref().update(updates);
+      onlineStatus.textContent = 'Invite sent to ' + toGameId + ' (pending)';
+
+      // --- NEW: create push request for server/cloud-function to send a push ---
+      try{
+        const pushReqRef = db.ref('push_requests').push();
+        await pushReqRef.set({
+          type: 'invite',
+          inviteRefPath: 'invites_by_gameid/' + encodeId(toGameId) + '/' + inviteId,
+          toGameId: toGameId,
+          toEmail: null,
+          title: (fromName ? fromName + ' invites you' : 'Game Invite'),
+          body: message || 'Join my chess game!',
+          createdAt: Date.now(),
+          processed: false
+        });
+      }catch(e){
+        console.warn('creating push request failed', e);
+      }
+    }
+
+    // convenience: send invite by email -> does lookup in gameIds_by_email
+    async function sendInviteByEmail(email, message){
+      if(!email) { onlineStatus.textContent='Provide email'; return; }
+      try{
+        const snap = await db.ref('gameIds_by_email/' + encodeEmail(email)).once('value');
+        const val = snap.val();
+        if(val && val.gameId){
+          await sendInviteByGameId(val.gameId, message || ('Join my chess game!'));
+          onlineStatus.textContent = 'Invite sent to ' + email + ' (gameId: ' + val.gameId + ')';
+        } else {
+          const fromGameId = (myIdEl && myIdEl.value) ? myIdEl.value : getOrCreateMyId();
+          const user = auth.currentUser;
+          const fromName = user ? (user.displayName || user.email || fromGameId) : (localStorage.getItem('chess_player_profile_top_v1') ? JSON.parse(localStorage.getItem('chess_player_profile_top_v1')).name : fromGameId);
+          const now = Date.now();
+          
+          // Use push().key for email invites since there is no custom rule on this path (assumed)
+          const inviteRef = db.ref('invites_by_email/' + encodeEmail(email)).push();
+          const inviteId = inviteRef.key;
+
+          const inviteObj = {
+            fromGameId,
+            fromUid: user ? user.uid : null,
+            fromName: fromName || null,
+            email: email,
+            msg: message || '',
+            status: 'pending',
+            sentAt: now
+          };
+          const updates = {};
+          updates['invites_by_email/' + encodeEmail(email) + '/' + inviteId] = inviteObj;
+          updates['outgoing_by_gameid/' + encodeId(fromGameId) + '/' + inviteId] = { toEmail: email, ...inviteObj };
+          await db.ref().update(updates);
+          onlineStatus.textContent = 'Invite saved for ' + email + ' (no gameId registered yet).';
+
+          // --- NEW: create push request for server/cloud-function to send a push to tokens stored by email ---
+          try{
+            const pushReqRef = db.ref('push_requests').push();
+            await pushReqRef.set({
+              type: 'invite_email',
+              inviteRefPath: 'invites_by_email/' + encodeEmail(email) + '/' + inviteId,
+              toGameId: null,
+              toEmail: email,
+              title: (fromName ? fromName + ' invites you' : 'Game Invite'),
+              body: message || 'Join my chess game!',
+              createdAt: Date.now(),
+              processed: false
+            });
+          }catch(e){
+            console.warn('creating push request failed', e);
+          }
+        }
+      }catch(e){
+        console.error('sendInviteByEmail failed', e);
+        onlineStatus.textContent = 'Invite by email failed: ' + (e.message || e);
+      }
+    }
+
+    // Accept invite → create game room + update statuses
+    async function acceptInvite(inviteIdRaw, inviteData){
+      const toGameId = (myIdEl && myIdEl.value) ? myIdEl.value : getOrCreateMyId();
+      // FIX: inviteId will be without 'email_' prefix for the DB path (if it's an email invite)
+      const inviteId = inviteIdRaw.startsWith('email_') ? inviteIdRaw.substring(6) : inviteIdRaw;
+      const now = Date.now();
+      
+      const roomId = inviteData.roomId || ('room-' + Math.random().toString(36).slice(2,9));
+      // Use existing or generate new (for email invites)
+
+      const initialFen = (typeof Chess === 'function') ? (new Chess()).fen() : 'start';
+      const user = (firebase.auth && firebase.auth().currentUser);
+      const myDisplayName = user ? (user.displayName || user.email || toGameId) : toGameId;
+
+      const gameRoom = {
+        roomId,
+        createdAt: now,
+        players: {
+          white: {
+            gameId: inviteData.fromGameId || inviteData.fromUid || 'playerA',
+            uid: inviteData.fromUid || null,
+            name: inviteData.fromName || inviteData.fromGameId || null
+          },
+          // FIX: Ensure the accepter's details are stored correctly as 'black'
+          black: {
+            gameId: toGameId,
+            uid: user ? user.uid : null,
+            name: myDisplayName
+          }
+        },
+        turn: 'w',
+        fen: initialFen,
+        moves: {},
+        status: 'ongoing',
+        updatedAt: now
+      };
+
+      const updates = {};
+      updates['games/' + roomId] = gameRoom; // Use the fixed roomId
+
+      let invitePath;
+      let outgoingPath = inviteData.fromGameId ? ('outgoing_by_gameid/' + encodeId(inviteData.fromGameId) + '/' + inviteId) : null;
+
+      if(inviteData.email){
+        // FIX: Use the inviteId without 'email_' prefix for the DB path
+        invitePath = 'invites_by_email/' + encodeEmail(inviteData.email) + '/' + inviteId;
+      } else {
+        // invite was addressed to this gameId
+        const myG = encodeId(toGameId);
+        // FIX: Use the inviteId without 'email_' prefix for the DB path
+        invitePath = 'invites_by_gameid/' + myG + '/' + inviteId;
+      }
+
+      updates[invitePath + '/status'] = 'accepted';
+      updates[invitePath + '/updatedAt'] = now;
+      updates[invitePath + '/roomId'] = roomId; // Ensure receiver's invite gets room ID
+
+      if(outgoingPath){
+        updates[outgoingPath + '/status'] = 'accepted';
+        updates[outgoingPath + '/updatedAt'] = now;
+        updates[outgoingPath + '/roomId'] = roomId; // Ensure outgoing also gets room ID
+      }
+
+      await db.ref().update(updates);
+
+      onlineStatus.textContent = 'Invite accepted. Game room created: ' + roomId;
+
+      // *** ACTION 1: WebRTC Call Start (Acceptor/Black starts as Caller) ***
+      if (window.webrtcStartCallAsCaller) {
+        try { window.webrtcStartCallAsCaller(roomId).catch(e=>console.warn('webrtc start err', e)); } catch(e){ console.warn(e); }
+      }
+
+      // NEW: notify sender that invite was accepted (create push request)
+      try{
+        const fromG = inviteData.fromGameId;
+        const pushRef = db.ref('push_requests').push();
+        await pushRef.set({
+          type: 'invite_accepted',
+          roomId,
+          toGameId: fromG || null,
+          toEmail: inviteData.fromEmail || null,
+          title: 'Invite accepted',
+          body: (inviteData.fromName || 'Friend') + ' — invite accepted. Join room: ' + roomId,
+          createdAt: Date.now(),
+          processed: false // Processed will be set to true by server logic
+        });
+      }catch(e){
+        console.warn('notify sender accept failed', e);
+      }
+
+      // *** ACTION 2: Join Game Room ***
+      if(typeof window.joinGameRoom === 'function'){
+        window.joinGameRoom(roomId, 'b'); 
+      } else {
+        setTimeout(()=>{ if(typeof window.joinGameRoom === 'function') window.joinGameRoom(roomId, 'b'); }, 500);
+      }
+    }
+
+    async function declineInvite(inviteIdRaw, inviteData){
+      const toGameId = (myIdEl && myIdEl.value) ? myIdEl.value : getOrCreateMyId();
+      // FIX: inviteId will be without 'email_' prefix for the DB path (if it's an email invite)
+      const inviteId = inviteIdRaw.startsWith('email_') ? inviteIdRaw.substring(6) : inviteIdRaw;
+      const now = Date.now();
+      const updates = {};
+
+      let invitePath;
+      let outgoingPath = inviteData.fromGameId ? ('outgoing_by_gameid/' + encodeId(inviteData.fromGameId) + '/' + inviteId) : null;
+
+      if(inviteData && inviteData.email){
+         // FIX: Use the inviteId without 'email_' prefix for the DB path
+        invitePath = 'invites_by_email/' + encodeEmail(inviteData.email) + '/' + inviteId;
+      } else {
+         // FIX: Use the inviteId without 'email_' prefix for the DB path
+        invitePath = 'invites_by_gameid/' + encodeId(toGameId) + '/' + inviteId;
+      }
+
+      updates[invitePath + '/status'] = 'declined';
+      updates[invitePath + '/updatedAt'] = now;
+      if(outgoingPath){
+        updates[outgoingPath + '/status'] = 'declined';
+        updates[outgoingPath + '/updatedAt'] = now;
+      }
+
+      await db.ref().update(updates);
+      onlineStatus.textContent = 'Invite declined.';
+    }
+
+    async function cancelOutgoingInvite(inviteId, outgoingData){
+      const fromGameId = (myIdEl && myIdEl.value) ? myIdEl.value : getOrCreateMyId();
+      const now = Date.now();
+      const updates = {};
+      updates['outgoing_by_gameid/' + encodeId(fromGameId) + '/' + inviteId + '/status'] = 'cancelled';
+      updates['outgoing_by_gameid/' + encodeId(fromGameId) + '/' + inviteId + '/updatedAt'] = now;
+      if(outgoingData && outgoingData.toGameId){
+        updates['invites_by_gameid/' + encodeId(outgoingData.toGameId) + '/' + inviteId + '/status'] = 'cancelled';
+        updates['invites_by_gameid/' + encodeId(outgoingData.toGameId) + '/' + inviteId + '/updatedAt'] = now;
+      }
+      if(outgoingData && outgoingData.toEmail){
+        updates['invites_by_email/' + encodeEmail(outgoingData.toEmail) + '/' + inviteId + '/status'] = 'cancelled';
+        updates['invites_by_email/' + encodeEmail(outgoingData.toEmail) + '/' + inviteId + '/updatedAt'] = now;
+      }
+      await db.ref().update(updates);
+      onlineStatus.textContent = 'Outgoing invite cancelled.';
+    }
+
+    // New renderIncomingInvites using existing UI structure
+    window.renderIncomingInvites = function(snapshot){
+      incomingInvitesEl.innerHTML = '';
+      const data = snapshot.val();
+      if(!data){
+        const el = document.createElement('div'); el.className='incoming-invite'; el.textContent = 'No incoming invites'; incomingInvitesEl.appendChild(el); return;
+      }
+      // Combine and reverse entries
+      const entries = Object.entries(data).reverse();
+      for(const [inviteIdRaw, inv] of entries){
+        const inviteId = inviteIdRaw.startsWith('email_') ? inviteIdRaw.substring(6) : inviteIdRaw;
+        const isEmailInvite = inviteIdRaw.startsWith('email_');
+
+        const row = document.createElement('div');
+        row.className = 'incoming-invite';
+        const info = document.createElement('div');
+        info.style.flex='1';
+        const identifier = isEmailInvite ? inv.email : inv.fromGameId;
+        info.innerHTML = `<div style="font-size:12px;"><strong>${inv.fromName || identifier || 'Unknown'}</strong> <span style="font-size:11px;color:#9ca3af;">(${identifier||''})</span></div><div style="font-size:12px;color:#e5e7eb;">${inv.msg||''}</div><div style="font-size:10px;color:#9ca3af;">${new Date(inv.sentAt).toLocaleString()}</div>`;
+        row.appendChild(info);
+        const btns = document.createElement('div'); btns.style.display='flex'; btns.style.gap='6px';
+        if(inv.status === 'pending'){
+          
+          // FIX: ACCEPT button on list now correctly triggers the POPUP (window.showInvitePopup)
+          const acc = document.createElement('button'); 
+          acc.className='small invite-btn'; 
+          acc.textContent='Accept'; 
+          acc.onclick = (function(invData, idRaw) {
+             return function() { 
+                 window.showInvitePopup(invData, idRaw); 
+             };
+          })(inv, inviteIdRaw); // Closure is safer for dynamically created elements
+          
+          const dec = document.createElement('button'); 
+          dec.className='small'; 
+          dec.style.background='#dc2626'; 
+          dec.textContent='D.cline'; 
+          dec.onclick = (function(idRaw, invData) {
+              return function() { 
+                  // Decline action is instant and does not need popup
+                  declineInvite(idRaw, invData); 
+                  window.hideInvitePopup(); // Ensure popup is hidden if it was showing
+              };
+          })(inviteIdRaw, inv); 
+          
+          btns.appendChild(acc); btns.appendChild(dec);
+        } else {
+          const st = document.createElement('div'); st.style.fontSize='11px'; st.textContent = inv.status; btns.appendChild(st);
+        }
+        row.appendChild(btns);
+        incomingInvitesEl.appendChild(row);
+      }
+    };
+
+    // Keep track of seen invites to avoid popup spam
+    const SEEN_INVITES_KEY = 'chess_seen_invites_v1';
+    function getSeenInviteSet(){
+      try{
+        const raw = localStorage.getItem(SEEN_INVITES_KEY);
+        if(!raw) return {};
+        return JSON.parse(raw) || {};
+      }catch(e){ return {}; }
+    }
+    function markInviteSeen(id){
+      try{
+        const s = getSeenInviteSet();
+        s[id] = Date.now();
+        localStorage.setItem(SEEN_INVITES_KEY, JSON.stringify(s));
+      }catch(e){}
+    }
+    function isInviteSeen(id){
+      try{
+        const s = getSeenInviteSet();
+        return !!s[id];
+      }catch(e){ return false; }
+    }
+
+    // Invite popup helpers (using the new overlay)
+    let currentPopupInvite = null;
+    let popupAutoHideTimer = null;
+    window.showInvitePopup = function(inviteData, inviteIdRaw){ // Takes raw ID
+      currentPopupInvite = { inviteIdRaw, inviteData };
+      const fromName = inviteData.fromName || inviteData.fromGameId || inviteData.email || 'Unknown Player';
+      const message = inviteData.msg || 'Join my chess game?';
+      
+      let content = invitePopup.querySelector('.invite-info');
+      if(!content){
+        content = document.createElement('div');
+        content.className = 'invite-info';
+        // Find a suitable insertion point if needed, otherwise just append/replace
+        const pEl = invitePopup.querySelector('p');
+        if(pEl) invitePopup.insertBefore(content, pEl);
+        else invitePopup.appendChild(content);
+      }
+
+      content.innerHTML = `<strong>${fromName}</strong> से इनवाइट आया है। <br> मैसेज: <em>"${message}"</em>`;
+
+      inviteOverlay.classList.add('show');
+      try{ 
+        const s = document.getElementById('inviteSound'); 
+        if(s){ 
+            s.currentTime = 0;
+            s.play().catch(()=>{}); 
+        } 
+      }catch(e){}
+      
+      if(popupAutoHideTimer) clearTimeout(popupAutoHideTimer);
+      popupAutoHideTimer = setTimeout(()=>{ window.hideInvitePopup(); }, 8000); // 8 sec auto-hide
+    }
+    window.hideInvitePopup = function(){
+      inviteOverlay.classList.remove('show');
+      currentPopupInvite = null;
+      if(popupAutoHideTimer){ clearTimeout(popupAutoHideTimer); popupAutoHideTimer = null; }
+    }
+
+     // ... (आपके बाकी फंक्शन्स और लॉजिक)
+// ...
+
+// Attach click events to new popup buttons
+if(acceptBtn) acceptBtn.addEventListener('click', async () => {
+  if(!currentPopupInvite) return;
+  
+  // Get the raw inviteId and data from the global state
+  const inviteIdRaw = currentPopupInvite.inviteIdRaw;
+  const inviteData = currentPopupInvite.inviteData;
+  
+  // **ACTION: Call the full acceptInvite function and await it**
+  try {
+    await acceptInvite(inviteIdRaw, inviteData); 
+  } catch(e) {
+    console.error('Accept invite failed:', e);
+    // यह दिखाएँ कि क्या गलती हुई है
+    onlineStatus.textContent = 'Accept failed: ' + (e.message || 'Check console');
+  } finally {
+    // FIX: Pop-up को हमेशा यहाँ छिपाएँ
+    window.hideInvitePopup(); 
+  }
+});
+
+if(declineBtn) declineBtn.addEventListener('click', async () => {
+  if(!currentPopupInvite) return;
+  
+  // Use the raw inviteId stored in currentPopupInvite
+  await declineInvite(currentPopupInvite.inviteIdRaw, currentPopupInvite.inviteData); // Pass raw ID
+  
+  window.hideInvitePopup(); // FIX: decline के बाद पॉपअप बंद हो जाना चाहिए
+});
+
+
+    // Single, robust auth UI + attach incoming listener (prevents duplicates)
+    if (!window._chess_login_handler_installed) {
+      window._chess_login_handler_installed = true;
+      auth.onAuthStateChanged(async user => {
+        // Render login container
+        if (!loginContainer) return;
+        if (user) {
+          const displayName = user.displayName || user.email || "Player";
+          loginContainer.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <img src="${user.photoURL || 'default-avatar.png'}" style="width:24px;height:24px;border-radius:50%;" alt="Avatar">
+                <span style="font-size:13px;color:#9ca3af;">Logged in as <strong>${displayName}</strong></span>
+              </div>
+              <button id="logoutBtn" class="small" style="background:#dc2626;">Logout</button>
+            </div>
+          `;
+          const logoutBtn = document.getElementById("logoutBtn");
+          if (logoutBtn) logoutBtn.onclick = () => auth.signOut().catch(e=>console.warn(e));
+
+          // register mapping (gameId -> uid and email -> gameId)
+          try {
+            const gid = (myIdEl && myIdEl.value) ? myIdEl.value : ensuredMyId;
+            if (gid) {
+              db.ref('gameIds/' + encodeId(gid)).set({ uid: user.uid, name: displayName, photoURL: user.photoURL || null, updatedAt: Date.now() });
+              if (user.email) {
+                db.ref('gameIds_by_email/' + encodeEmail(user.email)).set({ gameId: gid, uid: user.uid, name: displayName, updatedAt: Date.now() });
+              }
+            }
+          } catch(e){ console.warn('gameId mapping failed', e); }
+
+          // Request/save FCM token for this user on login
+          try{
+            await requestNotificationPermissionAndSaveToken();
+          }catch(e){ console.warn('request token after login failed', e); }
+
+        } else {
+          loginContainer.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:13px;color:#9ca3af;">Guest Mode</span>
+              <button id="googleLoginBtn" class="small">Login with Google</button>
+            </div>
+          `;
+          const googleBtn = document.getElementById("googleLoginBtn");
+          if (googleBtn) googleBtn.onclick = () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            // FIX: Using signInWithPopup to trigger the login process
+            auth.signInWithPopup(provider).catch(e=>{
+                console.warn(e);
+                // Better error feedback for user
+                 if (e.code === "auth/popup-closed-by-user") {
+                    alert("Login Failed: Popup closed by user.");
+                 } else if (e.code === "auth/cancelled-popup-request") {
+                    alert("Login Failed: Please allow popups or try again shortly.");
+                 }
+            });
+          };
+
+          // For guests, still attempt to request permission & token and save by gameId
+          try{ await requestNotificationPermissionAndSaveToken(); }catch(e){ /* ignore */ }
+        }
+
+        // attach listener (re-attach safe)
+        try{ attachIncomingListener(); }catch(e){ console.warn('attachIncomingListener error', e); }
+      });
+    }
+
+    // Attach incoming listener (value & child_added) — merged approach
+    let _incoming_ref = null;
+    let _incoming_email_ref = null; // New ref for email invites
+    function attachIncomingListener(){
+      try{
+        // detach previous
+        if(_incoming_ref && _incoming_ref.off) _incoming_ref.off();
+        if(_incoming_email_ref && _incoming_email_ref.off) _incoming_email_ref.off();
+
+        const gidRaw = (myIdEl && myIdEl.value) ? myIdEl.value.trim() : getOrCreateMyId();
+        if(!gidRaw) return;
+        const gid = encodeId(gidRaw);
+
+        // helper for merging and rendering
+        function mergeAndRender(gameSnap, emailSnap) {
+            const gameVal = gameSnap ? gameSnap.val() || {} : {};
+            const emailVal = emailSnap ? emailSnap.val() || {} : {};
+            const merged = Object.assign({}, gameVal);
+            // Prefix email invites to distinguish them later
+            Object.keys(emailVal).forEach(k => { 
+              if(emailVal[k].status === 'pending' || emailVal[k].status === 'accepted' || emailVal[k].status === 'declined' || emailVal[k].status === 'cancelled') {
+                 merged['email_'+k] = emailVal[k]; 
+              }
+            });
+            // Use an object that mimics a snapshot structure for the renderer
+            window.renderIncomingInvites({ val: ()=> merged });
+
+            // Check for new, unseen, pending invites and show popup
+            Object.entries(merged).forEach(([idRaw, inv]) => {
+                const id = idRaw.startsWith('email_') ? idRaw.substring(6) : idRaw;
+                if(inv.status === 'pending' && !isInviteSeen(idRaw)){ // Use idRaw for checking 'seen' status
+                    markInviteSeen(idRaw); // Mark as seen using the raw ID
+                    // Pass the raw ID (with 'email_' prefix if applicable) to the popup function for distinction
+                    window.showInvitePopup(inv, idRaw);
+                }
+            });
+        }
+
+        // Variable to hold the last email snapshot data
+        let lastEmailSnapshot = null;
+        let lastGameSnapshot = null;
+
+        // --- 1. Listener for Game ID Invites ---
+        _incoming_ref = db.ref('invites_by_gameid/' + gid);
+
+        // Listener for Game ID invites (updates when a game-ID invite changes)
+        _incoming_ref.on('value', snapshot => {
+          lastGameSnapshot = snapshot;
+          // Render based on what we have (if email listener hasn't fired yet, it will be null, and we pass a dummy empty snapshot)
+          mergeAndRender(lastGameSnapshot, lastEmailSnapshot);
+        });
+
+
+        // --- 2. Listener for Email Invites (only if logged in) ---
+        const curUser = auth.currentUser;
+        if(curUser && curUser.email){
+          _incoming_email_ref = db.ref('invites_by_email/' + encodeEmail(curUser.email));
+
+          _incoming_email_ref.on('value', snapshot => {
+            lastEmailSnapshot = snapshot;
+            // Now that we have the email snapshot, render the combined view
+            mergeAndRender(lastGameSnapshot, lastEmailSnapshot);
+          });
+        }
+
+
+      }catch(e){
+        console.warn('attachIncomingListener failed', e);
+      }
+    }
+
+    // Wire invite button to real Firebase function
+    if(inviteFriendBtn){
+      inviteFriendBtn.addEventListener('click', async ()=>{
+        const to = (friendIdInput && friendIdInput.value || '').trim();
+        if(!to){ onlineStatus.textContent = 'Pehle friend ka Game ID likho.'; return; }
+        try{
+          await sendInviteByGameId(to, 'Join my chess game!');
+        }catch(e){
+          console.error(e);
+          onlineStatus.textContent = 'Invite failed: ' + (e.message || e);
+        }
+      });
+    }
+
+    if(inviteEmailBtn){
+      inviteEmailBtn.addEventListener('click', async ()=>{
+        const email = (friendEmailInput && friendEmailInput.value || '').trim();
+        if(!email){ onlineStatus.textContent = 'Pehle friend ka Email likho.'; return; }
+        try{
+          await sendInviteByEmail(email, 'Join my chess game!');
+        }catch(e){
+          console.error(e);
+          onlineStatus.textContent = 'Invite by email failed: ' + (e.message || e);
+        }
+      });
+    }
+
+    const copyIdBtn = document.getElementById('copyIdBtn');
+    if(copyIdBtn){ copyIdBtn.addEventListener('click', ()=>{ try{ navigator.clipboard.writeText(myIdEl.value); onlineStatus.textContent='ID copy ho गया.'; }catch(e){ document.execCommand('copy'); onlineStatus.textContent='ID copy ho गया (fallback).'; } }); }
+
+    // export sendInviteByEmail/sendInviteByGameId to window for dev use
+    window.sendInviteByEmail = sendInviteByEmail;
+    window.sendInviteByGameId = sendInviteByGameId;
+
+    // call attach listener now (we already ensured myId)
+    try{ attachIncomingListener(); }catch(e){ console.warn(e); }
+
+    // indicate ready
+    onlineStatus.textContent = 'Connected to Firebase (real invites enabled).';
+
+  } catch (e) {
+    console.error("Firebase Initialization Error. Check your configuration.", e);
+    if (loginContainer) {
+      loginContainer.innerHTML = '<span style="color:red; font-size:12px;">Firebase Error: Real invites unavailable. Console check karo.</span>';
+    }
+    const onlineStatus = document.getElementById('onlineStatus');
+    if(onlineStatus) onlineStatus.textContent = 'Firebase init failed — real invites unavailable.';
+  }
+
+})();
+</script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.min.js"></script>
+
+  <script>
+  /* ---------- Globals & UI refs (unchanged) ---------- */
+  const PIECES_UNICODE = {
+    "r":"♜","n":"♞","b":"♝","q":"♛","k":"♚","p":"♟",
+    "R":"♖","N":"♘","B":"♗","Q":"♕","K":"♔","P":"♙"
+  };
+  
+  /* --- FIX: Piece Image Paths Updated as per uploaded file list (Original Color) --- */
+  const pieceImages3D = {
+    // White Pieces (Uppercase)
+    "P":"PAWNS-IMAGE(1).jpg",
+    "N":"KNIGHTS-IMAGE(1).jpg",
+    "B":"BISHOPS-IMAGE(1).jpg",
+    "R":"ROOKS-IMAGE(1).jpg",
+    "Q":"QUEEN-IMAGE(1).jpg",
+    "K":"KING-IMAGE(1).jpg",
+
+    // Black Pieces (Lowercase)
+    "p":"pawns-image.jpg",
+    "n":"knights-image.jpg",
+    "b":"bishops-image.jpg",
+    "r":"rooks-image.jpg",
+    "q":"Queen-image.jpg",
+    "k":"king-image.jpg"
+  };
+  /* ----------------------------------------------------------------- */
+
+  const boardEl = document.getElementById("board");
+  const statusEl = document.getElementById("status");
+  const movesListEl = document.getElementById("movesList");
+  const resetBtn = document.getElementById("resetBtn");
+  const undoBtn = document.getElementById("undoBtn");
+  const pieceBtn = document.getElementById("pieceBtn");
+  const hintBtn = document.getElementById("hintBtn");
+  const bestMoveBtn = document.getElementById("bestMoveBtn");
+  const whiteTimerEl = document.getElementById("whiteTimer");
+  const blackTimerEl = document.getElementById("blackTimer");
+  const whiteTimerBox = document.getElementById("whiteTimerBox");
+  const blackTimerBox = document.getElementById("blackTimerBox");
+  const modeBtn  = document.getElementById("modeBtn");
+  const moveSound = document.getElementById("moveSound");
+  const soundBtn = document.getElementById("soundBtn");
+  const flipBtn = document.getElementById("flipBtn");
+  
+  const videoToggleBtn = document.getElementById("videoToggleBtn"); // PRO MAX UI Ref
+  const videoCallContainer = document.getElementById("videoCallContainer"); // PRO MAX UI Ref
+
+  const difficultySelect = document.getElementById("difficultySelect");
+  const openingSelect = document.getElementById("openingSelect");
+  const aggressionSelect = document.getElementById("aggressionSelect");
+  const defenseSelect = document.getElementById("defenseSelect");
+  const personalitySelect = document.getElementById("personalitySelect");
+  const timeControlSelect = document.getElementById("timeControlSelect");
+  const incrementSelect = document.getElementById("incrementSelect");
+
+  const winsEl = document.getElementById("winsCount");
+  const lossesEl = document.getElementById("lossesCount");
+  const drawsEl = document.getElementById("drawsCount");
+  const currentStreakEl = document.getElementById("currentStreak");
+  const bestStreakEl = document.getElementById("bestStreak");
+  const resetStatsBtn = document.getElementById("resetStatsBtn");
+  
+  // PRO MAX UPGRADE: UI element for Bottom Player Name/Rating sync
+  const playerNameBottom = document.getElementById("playerNameBottom");
+  const playerRatingBottom = document.getElementById("playerRatingBottom");
+  const levelBottom = document.getElementById("levelBottom");
+  const playerAvatarBottom = document.getElementById("playerAvatarBottom");
+
+
+  const myIdEl           = document.getElementById("myId");
+  const copyIdBtn        = document.getElementById("copyIdBtn");
+  const friendIdInput    = document.getElementById("friendIdInput");
+  const inviteFriendBtn  = document.getElementById("inviteFriendBtn");
+  const onlineStatus     = document.getElementById("onlineStatus");
+
+  const game = new Chess();
+  let selectedSquare = null;
+  let lastMove = null;
+  let showHints = true;
+  let pieceStyle = "3d";
+  let isVsAI = false;
+  const aiColor = "b";
+  let aiThinking = false;
+
+  let whiteTime = 0;
+  let blackTime = 0;
+  let timerInterval = null;
+  let soundOn = true;
+
+  let difficulty = "Medium";
+  let openingStyle = "Auto";
+  let aggression = "Balanced";
+  let defenseStyle = "Solid";
+
+  let wins = 0, losses = 0, draws = 0;
+  let gameFinished = false;
+  let currentStreak = 0;
+  let bestStreak = 0;
+
+  let isFlipped = false;
+
+  let timeControl = "none";
+  let initialTime = 0;
+  let increment = 0;
+  let timeOver = false;
+  let flaggedSide = null;
+
+  /* ---------- Multiplayer globals ---------- */
+  let isMultiplayer = false;
+  let multiplayerRoomId = null;
+  let multiplayerColor = null; // 'w' or 'b'
+  let multiplayerDbRef = null;
+  let multiplayerMovesListener = null;
+  let isVideoEnabled = false; // PRO MAX Video State
+
+  // PRO MAX UPGRADE: Video Toggle Handler
+  if (videoToggleBtn) {
+      videoToggleBtn.addEventListener('click', () => {
+          isVideoEnabled = !isVideoEnabled;
+          videoToggleBtn.textContent = isVideoEnabled ? "Video: ON" : "Video: OFF";
+          
+          if (isMultiplayer && multiplayerRoomId && window.webrtcToggleVideo) {
+              window.webrtcToggleVideo(multiplayerRoomId, isVideoEnabled);
+              onlineStatus.textContent = 'Video set to: ' + (isVideoEnabled ? 'ON' : 'OFF');
+          } else if (isVideoEnabled) {
+              // Local video preview activation if enabled, even if not in MP yet
+              const localVideoEl = document.getElementById('localVideo');
+              if (localVideoEl && localVideoEl.srcObject) {
+                  localVideoEl.srcObject.getVideoTracks().forEach(track => track.enabled = true);
+              }
+          } else {
+              const localVideoEl = document.getElementById('localVideo');
+              if (localVideoEl && localVideoEl.srcObject) {
+                  localVideoEl.srcObject.getVideoTracks().forEach(track => track.enabled = false);
+              }
+          }
+          
+          // Toggle video container visibility for the board overlay
+          if(videoCallContainer) {
+             if (isMultiplayer && isVideoEnabled) {
+                videoCallContainer.classList.add('active');
+             } else {
+                videoCallContainer.classList.remove('active');
+             }
+          }
+      });
+  }
+
+
+  difficultySelect.addEventListener("change", e => {
+    difficulty = e.target.value;
+  });
+  openingSelect.addEventListener("change", e => {
+    openingStyle = e.target.value;
+  });
+  aggressionSelect.addEventListener("change", e => {
+    aggression = e.target.value;
+  });
+  defenseSelect.addEventListener("change", e => {
+    defenseStyle = e.target.value;
+  });
+
+  personalitySelect.addEventListener("change", e => {
+    const val = e.target.value;
+    if (val === "Chill") {
+      aggression = "Solid";
+      defenseStyle = "Solid";
+    } else if (val === "Balanced") {
+      aggression = "Balanced";
+      defenseStyle = "Solid";
+    } else if (val === "Attacker") {
+      aggression = "Aggressive";
+      defenseStyle = "Gambit";
+    } else if (val === "Gambit") {
+      aggression = "Aggressive";
+      defenseStyle = "Gambit";
+    }
+    aggressionSelect.value = aggression;
+    defenseSelect.value = defenseStyle;
+  });
+
+  timeControlSelect.addEventListener("change", e => {
+    timeControl = e.target.value;
+    if (timeControl === "bullet1")      initialTime = 60;
+    else if (timeControl === "blitz3")  initialTime = 180;
+    else if (timeControl === "blitz5")  initialTime = 300;
+    else if (timeControl === "rapid10") initialTime = 600;
+    else                                initialTime = 0;
+    resetTimer();
+  });
+
+  incrementSelect.addEventListener("change", e => {
+    increment = parseInt(e.target.value, 10) || 0;
+  });
+
+  function updateStatsUI(){
+    winsEl.textContent = wins;
+    lossesEl.textContent = losses;
+    drawsEl.textContent = draws;
+    currentStreakEl.textContent = currentStreak;
+    bestStreakEl.textContent = bestStreak;
+  }
+
+  resetStatsBtn.addEventListener("click", ()=>{
+    wins = 0; losses = 0; draws = 0;
+    currentStreak = 0; bestStreak = 0;
+    updateStatsUI();
+  });
+
+  flipBtn.addEventListener("click", () => {
+    isFlipped = !isFlipped;
+    drawBoard();
+  });
+
+  function playMoveSound(){
+    if(!soundOn) return;
+    try{
+      moveSound.currentTime = 0;
+      moveSound.play().catch(()=>{});
+    }catch(e){}
+  }
+
+  function fenToArray(fen){
+    const part = fen.split(" ")[0];
+    const rows = part.split("/");
+    const board = [];
+    rows.forEach(r=>{
+      const rowArr=[];
+      for(let ch of r){
+        if(!isNaN(ch)){
+          const empty = parseInt(ch,10);
+          for(let i=0;i<empty;i++) rowArr.push(".");
+        } else rowArr.push(ch);
+      }
+      board.push(rowArr);
+    });
+    return board;
+  }
+
+  function coordToSquare(row,col){
+    const file = String.fromCharCode("a".charCodeAt(0)+col);
+    const rank = 8-row;
+    return file+rank;
+  }
+
+  function clearHighlights(){
+    document.querySelectorAll(".square").forEach(sq=>{
+      sq.classList.remove("selected","last-move","hint-move","hint-capture","illegal");
+    });
+  }
+
+  function animateMove(fromSquare, toSquare, callback){
+    const fromEl = document.querySelector('.square[data-square="'+fromSquare+'"]');
+    const toEl   = document.querySelector('.square[data-square="'+toSquare+'"]');
+    if(!fromEl || !toEl){ if(callback) callback(); return; }
+    const child = fromEl.firstElementChild;
+    if(!child){ if(callback) callback(); return; }
+
+    const rectFrom = child.getBoundingClientRect();
+    const rectTo   = toEl.getBoundingClientRect();
+
+    const clone = child.cloneNode(true);
+    clone.classList.add("anim-clone");
+    clone.style.position = "fixed";
+    clone.style.left = rectFrom.left + "px";
+    clone.style.top  = rectFrom.top  + "px";
+    clone.style.width = rectFrom.width + "px";
+    clone.style.height = rectFrom.height + "px";
+    clone.style.opacity = "1";
+    clone.style.pointerEvents = "none";
+    document.body.appendChild(clone);
+    clone.getBoundingClientRect();
+
+    const dx = rectTo.left - rectFrom.left;
+    const dy = rectTo.top - rectFrom.top;
+    clone.style.transform = `translate(${dx}px,${dy}px)`;
+    clone.style.transition = "transform .36s cubic-bezier(.2,.9,.2,1), opacity .36s ease";
+
+    setTimeout(()=>{ clone.style.opacity = "0"; }, 320);
+    setTimeout(()=>{ clone.remove(); if(callback) callback(); }, 420);
+  }
+
+  function findMoveBySan(san){
+    const moves = game.moves({ verbose:true });
+    return moves.find(m => m.san === san) || null;
+  }
+
+  function getBookMove(){
+    if (game.turn() !== aiColor) return null;
+
+    const hist = game.history();
+    const ply = hist.length;
+
+    if (ply > 6) return null;
+
+    const lastWhiteMove = (ply % 2 === 1) ? hist[ply - 1] : null;
+    if (!lastWhiteMove) return null;
+
+    let sanChoice = null;
+
+    if (lastWhiteMove === "e4") {
+      if (openingStyle === "Sicilian") sanChoice = "c5";
+      else if (openingStyle === "DragonSicilian") sanChoice = "c5";
+      else if (openingStyle === "NajdorfSicilian") sanChoice = "c5";
+      else if (openingStyle === "French") sanChoice = "e6";
+      else if (openingStyle === "CaroKann") sanChoice = "c6";
+      else if (openingStyle === "Classical") sanChoice = "e5";
+      else if (openingStyle === "RuyLopez") sanChoice = "e5";
+      else if (openingStyle === "BenkoGambit") sanChoice = "c5";
+      else if (openingStyle === "LondonSystemWhite") {
+        const opts = ["d5","e6"];
+        sanChoice = opts[Math.floor(Math.random()*opts.length)];
+      }
+      else if (openingStyle === "RandomBook") {
+        const opts = ["c5","e6","c6","e5","d5"];
+        sanChoice = opts[Math.floor(Math.random()*opts.length)];
+      }
+      else sanChoice = "c5";
+
+      return findMoveBySan(sanChoice);
+    }
+
+    if (lastWhiteMove === "d4") {
+      if (openingStyle === "QGD") sanChoice = "d5";
+      else if (openingStyle === "KingsIndian") sanChoice = "Nf6";
+      else if (openingStyle === "BenkoGambit") sanChoice = "c5";
+      else if (openingStyle === "LondonSystemWhite") {
+        const opts = ["d5","Nf6"];
+        sanChoice = opts[Math.floor(Math.random()*opts.length)];
+      }
+      else if (openingStyle === "RandomBook") {
+        const opts = ["d5","Nf6","c5"];
+        sanChoice = opts[Math.floor(Math.random()*opts.length)];
+      }
+      else {
+        const opts = ["d5","Nf6"];
+        sanChoice = opts[Math.floor(Math.random()*opts.length)];
+      }
+
+      return findMoveBySan(sanChoice);
+    }
+
+    return null;
+  }
+
+  function handleFlag(side){
+    timeOver = true;
+    flaggedSide = side;
+    stopTimer();
+
+    if (isVsAI && !gameFinished) {
+      if (side === "White") {
+        losses++;
+        currentStreak = 0;
+      } else {
+        wins++;
+        currentStreak++;
+        if(currentStreak > bestStreak) bestStreak = currentStreak;
+      }
+      updateStatsUI();
+      gameFinished = true;
+    }
+
+    statusEl.textContent = side + " flagged on time";
+  }
+
+  function drawBoard(){
+    boardEl.innerHTML = "";
+    const matrix = fenToArray(game.fen());
+    const size = 12.5;
+
+    for(let row=0; row<8; row++){
+      for(let col=0; col<8; col++){
+        const sqDiv = document.createElement("div");
+        sqDiv.classList.add("square");
+        const dark = (row+col)%2 === 1;
+        sqDiv.classList.add(dark ? "dark" : "light");
+
+        const displayRow = isFlipped ? 7 - row : row;
+        const displayCol = isFlipped ? 7 - col : col;
+        sqDiv.style.left = (displayCol*size) + "%";
+        sqDiv.style.top  = (displayRow*size) + "%";
+
+        const square = coordToSquare(row,col);
+        sqDiv.dataset.square = square;
+
+        const piece = matrix[row][col];
+        if(piece !== "."){
+          const isWhite = (piece === piece.toUpperCase());
+          const colorClass = isWhite ? "white" : "black";
+          
+          if(pieceStyle === "3d" && pieceImages3D[piece]){
+            const img = document.createElement("img");
+            img.src = pieceImages3D[piece];
+            
+            // FIX: Removed color-specific class (white-side/black-side) to prevent color tampering via CSS filters.
+            img.classList.add("piece-img"); 
+            
+            sqDiv.appendChild(img);
+          } else {
+            const span = document.createElement("span");
+            span.textContent = PIECES_UNICODE[piece] || "";
+            
+            span.classList.add("piece", colorClass);
+            
+            sqDiv.appendChild(span);
+          }
+        }
+
+        if(lastMove && (square === lastMove.from || square === lastMove.to)){
+          sqDiv.classList.add("last-move");
+        }
+
+        sqDiv.addEventListener("click", ()=> onSquareClick(square));
+        boardEl.appendChild(sqDiv);
+      }
+    }
+
+    updateStatus();
+    updateMovesList();
+    updateActiveTimerHighlight();
+  }
+
+  function updateStatus(){
+    if(timeOver){
+      return;
+    }
+
+    let status = "";
+    const turnColor = game.turn() === "w" ? "White" : "Black";
+
+    if(game.in_checkmate()){
+      status = "Checkmate – " + (turnColor === "White" ? "Black" : "White") + " wins";
+      if(!gameFinished && isVsAI){
+        const winner = (turnColor === "White" ? "Black" : "White");
+        if(winner === "White"){
+          wins++;
+          currentStreak++;
+          if(currentStreak > bestStreak) bestStreak = currentStreak;
+        } else {
+          losses++;
+          currentStreak = 0;
+        }
+        updateStatsUI();
+        gameFinished = true;
+      }
+      stopTimer();
+    } else if(game.in_draw()){
+      status = "Draw";
+      if(!gameFinished && isVsAI){
+        draws++;
+        currentStreak = 0;
+        updateStatsUI();
+        gameFinished = true;
+      }
+      stopTimer();
+    } else {
+      if(isVsAI){
+        if(game.turn() === "w") status = "Your move (White)";
+        else status = aiThinking ? "AI thinking..." : "AI move (0.3 sec)";
+      } else if (isMultiplayer) {
+        status = turnColor + " to move (Multiplayer)";
+        // If it's not my turn, append who is playing
+        if (game.turn() !== multiplayerColor) {
+             status += " - Waiting for " + (game.turn() === 'w' ? 'White' : 'Black');
+        } else {
+             status += " - Your turn (" + (multiplayerColor === 'w' ? 'White' : 'Black') + ")";
+        }
+      }
+      else {
+        status = turnColor + " to move";
+      }
+      if(game.in_check()) status += " • Check!";
+    }
+
+    statusEl.textContent = status;
+  }
+
+  function updateMovesList(){
+    const hist = game.history();
+    if(!hist.length){
+      movesListEl.textContent = "No moves yet";
+      return;
+    }
+    movesListEl.innerHTML = "";
+    for(let i=0;i<hist.length;i+=2){
+      const row = document.createElement("div");
+      row.classList.add("move-row");
+      const idx = document.createElement("div");
+      idx.classList.add("move-index");
+      idx.textContent = (i/2+1) + ".";
+      const wSpan = document.createElement("div");
+      wSpan.textContent = hist[i] || "";
+      const bSpan = document.createElement("div");
+      bSpan.textContent = hist[i+1] || "";
+      row.appendChild(idx); row.appendChild(wSpan); row.appendChild(bSpan);
+      movesListEl.appendChild(row);
+    }
+  }
+
+  function showHintsForSquare(square){
+    if(!showHints) return;
+    if(isVsAI && game.turn() === aiColor) return;
+    const moves = game.moves({ square, verbose:true });
+    moves.forEach(m=>{
+      const sq = document.querySelector('.square[data-square="'+m.to+'"]');
+      if(!sq) return;
+      if(m.captured) sq.classList.add("hint-capture");
+      else sq.classList.add("hint-move");
+    });
+  }
+
+  function onSquareClick(square){
+    if(game.game_over()) return;
+    if(timeOver) return;
+    if(aiThinking) return;
+    if(isVsAI && game.turn() === aiColor) return;
+
+    // In multiplayer mode, only allow moves for your color
+    if (isMultiplayer && game.turn() !== multiplayerColor) {
+        console.log('Not your turn in multiplayer or you are not the right color');
+        return;
+    }
+
+
+    const pieceOnClicked = game.get(square);
+
+    if(selectedSquare === square){
+      selectedSquare = null;
+      clearHighlights();
+      drawBoard();
+      return;
+    }
+
+    if(selectedSquare){
+      if(pieceOnClicked && pieceOnClicked.color === game.turn()){
+        selectedSquare = square;
+        clearHighlights();
+        drawBoard();
+        const sqDiv = document.querySelector('.square[data-square="'+square+'"]');
+        if(sqDiv) sqDiv.classList.add("selected");
+        showHintsForSquare(square);
+        return;
+      }
+
+      const moveAttempt = game.move({
+        from: selectedSquare,
+        to: square,
+        promotion: "q"
+      });
+
+      if(!moveAttempt){
+        const sqDiv = document.querySelector('.square[data-square="'+square+'"]');
+        if(sqDiv){
+          sqDiv.classList.add("illegal");
+          setTimeout(()=> sqDiv.classList.remove("illegal"), 200);
+        }
+        return;
+      }
+
+      if(timeControl !== "none" && increment > 0){
+        if(moveAttempt.color === "w") whiteTime += increment;
+        else blackTime += increment;
+      }
+
+      playMoveSound();
+      lastMove = { from: moveAttempt.from, to: moveAttempt.to };
+      const fromSq = moveAttempt.from;
+      const toSq   = moveAttempt.to;
+
+      // ---------- Multiplayer: push move to DB if in multiplayer ----------
+      if(isMultiplayer && multiplayerRoomId && typeof firebase !== 'undefined' && firebase.database){
+        try{
+          const db = firebase.database();
+          const movesRef = db.ref('games/' + multiplayerRoomId + '/moves');
+          const newMoveRef = movesRef.push();
+          const movePayload = {
+            from: moveAttempt.from,
+            to: moveAttempt.to,
+            san: moveAttempt.san || null,
+            promotion: moveAttempt.promotion || null,
+            at: Date.now(),
+            byUid: (firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser.uid : null
+          };
+          // IMPORTANT: Push the FEN and turn to the room main object
+          const updates = {};
+          updates['games/' + multiplayerRoomId + '/fen'] = game.fen();
+          updates['games/' + multiplayerRoomId + '/turn'] = game.turn();
+          updates['games/' + multiplayerRoomId + '/updatedAt'] = Date.now();
+          db.ref().update(updates);
+          
+          // Push the move object (should happen after the main room update for better data consistency)
+          newMoveRef.set(movePayload);
+          
+        }catch(e){
+          console.error('Failed to push multiplayer move', e);
+        }
+      }
+
+      animateMove(fromSq, toSq, ()=>{
+        selectedSquare = null;
+        clearHighlights();
+        drawBoard();
+        if(isVsAI && !game.game_over() && !timeOver){
+          aiMove();
+        }
+      });
+
+      return;
+    }
+
+    if(!pieceOnClicked || pieceOnClicked.color !== game.turn()) return;
+    selectedSquare = square;
+    clearHighlights();
+    drawBoard();
+    const sqDiv = document.querySelector('.square[data-square="'+square+'"]');
+    if(sqDiv) sqDiv.classList.add("selected");
+    showHintsForSquare(square);
+  }
+
+  function formatTime(sec){
+    const m = Math.floor(sec/60);
+    const s = sec%60;
+    const mm = m<10 ? "0"+m : ""+m;
+    const ss = s<10 ? "0"+s : ""+s;
+    return mm+":"+ss;
+  }
+  function updateTimerDisplay(){
+    whiteTimerEl.textContent = formatTime(Math.max(0, whiteTime));
+    blackTimerEl.textContent = formatTime(Math.max(0, blackTime));
+  }
+  function updateActiveTimerHighlight(){
+    whiteTimerBox.classList.remove("timer-active");
+    blackTimerBox.classList.remove("timer-active");
+    if(game.game_over() || timeOver) return;
+    if(game.turn() === "w") whiteTimerBox.classList.add("timer-active");
+    else blackTimerBox.classList.add("timer-active");
+  }
+  function startTimer(){
+    stopTimer();
+    timerInterval = setInterval(()=>{
+      if(game.game_over() || timeOver){
+        stopTimer(); return;
+      }
+
+      if(timeControl === "none"){
+        if(game.turn() === "w") whiteTime++;
+        else blackTime++;
+      } else {
+        if(game.turn() === "w"){
+          whiteTime--;
+          if(whiteTime <= 0){
+            whiteTime = 0;
+            updateTimerDisplay();
+            handleFlag("White");
+            return;
+          }
+        } else {
+          blackTime--;
+          if(blackTime <= 0){
+            blackTime = 0;
+            updateTimerDisplay();
+            handleFlag("Black");
+            return;
+          }
+        }
+      }
+
+      updateTimerDisplay();
+    }, 1000);
+    updateActiveTimerHighlight();
+  }
+  function stopTimer(){
+    if(timerInterval){
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+    updateActiveTimerHighlight();
+  }
+  function resetTimer(){
+    stopTimer();
+    timeOver = false;
+    flaggedSide = null;
+    if(timeControl === "none"){
+      whiteTime = 0;
+      blackTime = 0;
+    } else {
+      whiteTime = initialTime;
+      blackTime = initialTime;
+    }
+    updateTimerDisplay();
+    startTimer();
+  }
+
+  function evaluateMaterial(){
+    const boardArr = game.board();
+    let score = 0;
+    const values = { p:100, n:320, b:330, r:500, q:900, k:0 };
+    for(let row=0; row<8; row++){
+      for(let col=0; col<8; col++){
+        const piece = boardArr[row][col];
+        if(!piece) continue;
+        const val = values[piece.type] || 0;
+        if(piece.color === "w") score += val;
+        else score -= val;
+      }
+    }
+    return score;
+  }
+
+  function showBestMoveHint(){
+    if(game.game_over() || timeOver) return;
+    const moves = game.moves({ verbose:true });
+    if(!moves.length) return;
+
+    const turnBefore = game.turn();
+    let bestMove = null;
+    let bestScore = (turnBefore === "w") ? -Infinity : Infinity;
+    for(const m of moves){
+      game.move(m);
+      const evalScore = evaluateMaterial();
+      game.undo();
+
+      if(turnBefore === "w"){
+        if(evalScore > bestScore){
+          bestScore = evalScore;
+          bestMove = m;
+        }
+      }else{
+        if(evalScore < bestScore){
+          bestScore = evalScore;
+          bestMove = m;
+        }
+      }
+    }
+
+    if(bestMove){
+      clearHighlights();
+      const fromEl = document.querySelector('.square[data-square="'+bestMove.from+'"]');
+      const toEl   = document.querySelector('.square[data-square="'+bestMove.to+'"]');
+      if(fromEl) fromEl.classList.add("selected");
+      if(toEl) toEl.classList.add("hint-move");
+      statusEl.textContent = statusEl.textContent.replace(/ • Best:.*$/,"");
+      statusEl.textContent += " • Best: " + bestMove.san;
+    }
+  }
+
+  bestMoveBtn.addEventListener("click", showBestMoveHint);
+
+  function aiMove() {
+    if(timeOver) return;
+    aiThinking = true;
+    updateStatus();
+
+    const delay = 300;
+
+    setTimeout(() => {
+      if (game.game_over() || timeOver) {
+        aiThinking = false;
+        updateStatus();
+        return;
+      }
+
+      let moveToPlay = getBookMove();
+
+      const legalMovesVerbose = game.moves({ verbose: true });
+      if (!legalMovesVerbose.length) {
+        aiThinking = false;
+        updateStatus();
+        return;
+      }
+
+      if (!moveToPlay) {
+        let candidates = legalMovesVerbose.slice();
+        const captures = legalMovesVerbose.filter(m => m.captured);
+        const checks   = legalMovesVerbose.filter(m => m.san.includes("+"));
+
+        if (aggression === "Aggressive" && (captures.length || checks.length)) {
+          candidates = captures.concat(checks);
+        }
+
+        if (difficulty === "Killer") {
+          // Add a logic specific to killer difficulty if needed, or rely on aggressive setting.
+          // For now, let's keep it simple random pick from candidates
+          if (captures.length) candidates = captures;
+          else if (checks.length) candidates = checks;
+        }
+
+
+        moveToPlay = candidates[Math.floor(Math.random()*candidates.length)];
+      }
+
+      const moveObj = game.move(moveToPlay);
+      if (moveObj) {
+        if(timeControl !== "none" && increment > 0){
+          if(moveObj.color === "w") whiteTime += increment;
+          else blackTime += increment;
+        }
+
+        playMoveSound();
+        lastMove = { from: moveObj.from, to: moveObj.to };
+      }
+
+      aiThinking = false;
+      clearHighlights();
+      drawBoard();
+    }, delay);
+  }
+
+  resetBtn.addEventListener("click", ()=>{
+    game.reset();
+    lastMove=null;
+    selectedSquare=null;
+    clearHighlights();
+    gameFinished = false;
+    timeOver = false;
+    flaggedSide = null;
+    drawBoard();
+    resetTimer();
+
+    // In multiplayer, also call stop voice/video
+    if(multiplayerRoomId && window.webrtcStopCall) {
+        window.webrtcStopCall(multiplayerRoomId);
+    }
+    isMultiplayer = false;
+    multiplayerRoomId = null;
+    multiplayerColor = null;
+    updateRemotePlayerUI(null, true);
+    if(videoCallContainer) videoCallContainer.classList.remove('active'); // Hide video container
+  });
+
+  undoBtn.addEventListener("click", ()=>{
+    if(isVsAI){
+      game.undo();
+      game.undo();
+    } else {
+      game.undo();
+    }
+    lastMove=null;
+    selectedSquare=null;
+    clearHighlights();
+    gameFinished = false;
+    timeOver = false;
+    flaggedSide = null;
+    drawBoard();
+  });
+
+  pieceBtn.addEventListener("click", ()=>{
+    pieceStyle = (pieceStyle==="3d") ? "unicode" : "3d";
+    pieceBtn.textContent = "Pieces: " + (pieceStyle==="3d" ? "3D" : "Text");
+    drawBoard();
+  });
+
+  hintBtn.addEventListener("click", ()=>{
+    showHints = !showHints;
+    hintBtn.textContent = "Hints: " + (showHints ? "ON" : "OFF");
+    clearHighlights();
+    drawBoard();
+  });
+
+  soundBtn.addEventListener("click", ()=>{
+    soundOn = !soundOn;
+    soundBtn.textContent = "Sound: " + (soundOn ? "ON" : "OFF");
+  });
+
+  modeBtn.addEventListener("click", ()=>{
+    isVsAI = !isVsAI;
+    modeBtn.textContent = "Mode: " + (isVsAI ? "Vs Bot" : "2P");
+    game.reset();
+    lastMove=null;
+    selectedSquare=null;
+    clearHighlights();
+    gameFinished = false;
+    timeOver = false;
+    flaggedSide = null;
+    currentStreak = 0;
+    updateStatsUI();
+    drawBoard();
+    resetTimer();
+    // Also reset multiplayer status and voice chat
+    if(multiplayerRoomId && window.webrtcStopCall) {
+        window.webrtcStopCall(multiplayerRoomId);
+    }
+    isMultiplayer = false;
+    multiplayerRoomId = null;
+    multiplayerColor = null;
+    updateRemotePlayerUI(null, true);
+    if(videoCallContainer) videoCallContainer.classList.remove('active'); // Hide video container
+  });
+
+  function generateId(){
+    const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    let part1 = "";
+    for(let i=0;i<4;i++){
+      part1 += letters[Math.floor(Math.random()*letters.length)];
+    }
+    const part2 = String(Math.floor(1000 + Math.random()*9000));
+    return part1 + "-" + part2;
+  }
+
+  const MY_ID_STORAGE_KEY = "chess_game_my_id_v1";
+  function loadMyId(){
+    try{
+      const saved = localStorage.getItem(MY_ID_STORAGE_KEY);
+      if(saved && saved.trim()) return saved.trim();
+    }catch(e){}
+    const id = generateId();
+    try{
+      localStorage.setItem(MY_ID_STORAGE_KEY, id);
+    }catch(e){}
+    return id;
+  }
+  function initMyId(){
+    const id = loadMyId();
+    if(myIdEl) myIdEl.value = id;
+  }
+
+  function copyMyId(){
+    if(!myIdEl) return;
+    myIdEl.select();
+    myIdEl.setSelectionRange(0, 9999);
+    let ok = false;
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(myIdEl.value).then(()=>{
+        onlineStatus.textContent = "ID copy ho गया. Ab tum ye ID friend ko bhej sakte ho.";
+      }).catch(()=>{
+        document.execCommand('copy');
+        onlineStatus.textContent = "ID copy ho गया (fallback).";
+      });
+      ok = true;
+    }
+    if(!ok){
+      document.execCommand('copy');
+      onlineStatus.textContent = "ID copy ho गया.";
+    }
+  }
+
+  if(copyIdBtn)       copyIdBtn.addEventListener("click", copyMyId);
+  if(inviteFriendBtn) {
+    // inviteFriendBtn wired to real sendInviteByGameId when Firebase is initialized
+    inviteFriendBtn.addEventListener("click", ()=> { setTimeout(()=>{ if(onlineStatus && onlineStatus.textContent.includes('Firebase')){} },0); });
+  }
+
+  (function(){
+    const STORAGE_KEY_TOP = "chess_player_profile_top_v1";
+    const playerNameInput = document.getElementById("playerNameInput");
+    const saveNameBtn = document.getElementById("saveNameBtn");
+    const playerNameDisplay = document.getElementById("playerNameDisplay");
+
+    const playerRatingDisplay = document.getElementById("playerRatingDisplay");
+    const resetRatingBtn = document.getElementById("resetRatingBtn");
+    const incRatingBtn = document.getElementById("incRatingBtn");
+
+    const xpBar = document.getElementById("xpBar");
+    const xpDisplay = document.getElementById("xpDisplay");
+    const xpForNext = document.getElementById("xpForNext");
+    const levelDisplay = document.getElementById("levelDisplay");
+    const addXpBtn = document.getElementById("addXpBtn");
+    const addXpBigBtn = document.getElementById("addXpBigBtn");
+
+    const changeAvatarBtn = document.getElementById("changeAvatarBtn");
+    const avatarFileInput = document.getElementById("avatarFileInput");
+    const playerAvatarTop = document.getElementById("playerAvatarTop");
+
+    const defaultProfileTop = {
+      name: "",
+      rating: 1200,
+      xp: 0,
+      level: 1,
+      avatarDataUrl: ""
+    };
+
+    function loadTop(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY_TOP);
+        if(!raw) return Object.assign({}, defaultProfileTop);
+        const obj = JSON.parse(raw);
+        return Object.assign({}, defaultProfileTop, obj);
+      }catch(e){
+        return Object.assign({}, defaultProfileTop);
+      }
+    }
+
+    function saveTop(p){
+      localStorage.setItem(STORAGE_KEY_TOP, JSON.stringify(p));
+    }
+
+    function xpNeeded(level){
+      return 100 * level;
+    }
+
+    function renderTop(){
+      const p = loadTop();
+      const name = p.name && p.name.trim() ? p.name.trim() : "Player 1 —";
+      playerNameDisplay.textContent = "Player 1: " + name;
+      playerRatingDisplay.textContent = p.rating;
+      levelDisplay.textContent = "Lv " + p.level;
+      xpDisplay.textContent = p.xp;
+      xpForNext.textContent = xpNeeded(p.level);
+
+      const pct = Math.min(100, Math.round((p.xp / xpNeeded(p.level)) * 100));
+      xpBar.style.width = pct + "%";
+
+      if(p.avatarDataUrl){
+        playerAvatarTop.src = p.avatarDataUrl;
+        playerAvatarTop.style.background = "";
+      } else {
+        playerAvatarTop.src = "";
+        playerAvatarTop.style.background = "linear-gradient(135deg,#374151,#111827)";
+      }
+      if(playerNameInput && !playerNameInput.value){
+        playerNameInput.value = p.name || "";
+      }
+    }
+
+    function saveTopName(){
+      const p = loadTop();
+      p.name = (playerNameInput.value || "").slice(0, 30);
+      saveTop(p);
+      renderTop();
+    }
+
+    function resetTopRating(){
+      const p = loadTop();
+      p.rating = 1200;
+      saveTop(p);
+      renderTop();
+    }
+
+    function incTopRating(){
+      const p = loadTop();
+      p.rating = (p.rating || 1200) + 10;
+      saveTop(p);
+      renderTop();
+    }
+
+    function addXp(amount){
+      const p = loadTop();
+      p.xp = (p.xp || 0) + amount;
+      while(p.xp >= xpNeeded(p.level)){
+        p.xp -= xpNeeded(p.level);
+        p.level = (p.level || 1) + 1;
+      }
+      saveTop(p);
+      renderTop();
+    }
+
+    function handleAvatarFileChange(e){
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev){
+        const dataUrl = ev.target.result;
+        const p = loadTop();
+        p.avatarDataUrl = dataUrl;
+        saveTop(p);
+        renderTop();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    if(saveNameBtn) saveNameBtn.addEventListener("click", saveTopName);
+    if(resetRatingBtn) resetRatingBtn.addEventListener("click", resetTopRating);
+    if(incRatingBtn)   incRatingBtn.addEventListener("click", incTopRating);
+    if(addXpBtn)       addXpBtn.addEventListener("click", ()=> addXp(10));
+    if(addXpBigBtn)    addXpBigBtn.addEventListener("click", ()=> addXp(40));
+    if(changeAvatarBtn) changeAvatarBtn.addEventListener("click", ()=> avatarFileInput.click());
+    if(avatarFileInput) avatarFileInput.addEventListener("change", handleAvatarFileChange);
+
+    try{ renderTop(); }catch(e){}
+  })();
+
+  (function(){
+    const STORAGE_KEY_BOTTOM = "chess_player_profile_bottom_v1";
+
+    const bottomNameInput = document.getElementById("bottomNameInput");
+    const saveNameBottomBtn = document.getElementById("saveNameBottomBtn");
+    
+    // UI elements already defined globally:
+    // const playerNameBottom = document.getElementById("playerNameBottom");
+    // const playerAvatarBottom = document.getElementById("playerAvatarBottom");
+
+    const changeAvatarBottomBtn = document.getElementById("changeAvatarBottomBtn");
+    const avatarBottomFileInput = document.getElementById("avatarBottomFileInput");
+
+    const viewProfileBtn = document.getElementById("viewProfileBtn");
+    const resetProfileBtn = document.getElementById("resetProfileBtn");
+
+    const defaultBottom = {
+      name: "",
+      avatarDataUrl: ""
+    };
+    
+    // PRO MAX UPGRADE: Function to update Remote Player UI
+    window.updateRemotePlayerUI = function(remoteProfile, reset = false) {
+        if (reset || !remoteProfile) {
+            playerNameBottom.textContent = "Player 2 —";
+            playerRatingBottom.textContent = '1200';
+            levelBottom.textContent = 'Lv 1';
+            playerAvatarBottom.src = "";
+            playerAvatarBottom.style.background = "linear-gradient(135deg,#374151,#111827)";
+            bottomNameInput.value = "";
+            
+            // Re-load local bottom profile to show it if not in MP mode
+            if(!isMultiplayer) renderBottom();
+            
+            // Show local edit UI elements
+            bottomNameInput.style.display = '';
+            saveNameBottomBtn.style.display = '';
+            changeAvatarBottomBtn.style.display = '';
+            return;
+        }
+
+        // Display remote player data
+        playerNameBottom.textContent = remoteProfile.name || remoteProfile.gameId || "Player 2 (Remote)";
+        playerRatingBottom.textContent = remoteProfile.rating || '1200';
+        levelBottom.textContent = 'Lv ' + (remoteProfile.level || '1');
+        
+        if (remoteProfile.photoURL) {
+            playerAvatarBottom.src = remoteProfile.photoURL;
+        } else {
+            playerAvatarBottom.src = "";
+            playerAvatarBottom.style.background = "linear-gradient(135deg,#374151,#111827)";
+        }
+        
+        // Hide local edit inputs when viewing remote player
+        bottomNameInput.style.display = 'none';
+        saveNameBottomBtn.style.display = 'none';
+        changeAvatarBottomBtn.style.display = 'none';
+    }
+
+
+    function loadBottom(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY_BOTTOM);
+        if(!raw) return Object.assign({}, defaultBottom);
+        const obj = JSON.parse(raw);
+        return Object.assign({}, defaultBottom, obj);
+      }catch(e){
+        return Object.assign({}, defaultBottom);
+      }
+    }
+    function saveBottom(p){
+      localStorage.setItem(STORAGE_KEY_BOTTOM, JSON.stringify(p));
+    }
+
+    function renderBottom(){
+      const p = loadBottom();
+      const name = p.name && p.name.trim() ? p.name.trim() : "Player 2 —";
+      playerNameBottom.textContent = name;
+      
+      // Show local edit UI elements
+      bottomNameInput.style.display = '';
+      saveNameBottomBtn.style.display = '';
+      changeAvatarBottomBtn.style.display = '';
+
+      if(p.avatarDataUrl){
+        playerAvatarBottom.src = p.avatarDataUrl;
+        playerAvatarBottom.style.background = "";
+      } else {
+        playerAvatarBottom.src = "";
+        playerAvatarBottom.style.background = "linear-gradient(135deg,#374151,#111827)";
+      }
+    }
+
+    function saveBottomName(){
+      const p = loadBottom();
+      p.name = (bottomNameInput.value || "").slice(0, 30);
+      saveBottom(p);
+      renderBottom();
+    }
+
+    function handleBottomAvatarChange(e){
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev){
+        const dataUrl = ev.target.result;
+        const p = loadBottom();
+        p.avatarDataUrl = dataUrl;
+        saveBottom(p);
+        renderBottom();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function viewProfile(){
+      const p = loadBottom();
+      const name = p.name || "—";
+      alert(`Player 2 Name: ${name}`);
+    }
+
+    function resetProfile(){
+      if(!confirm("Player 2 ka profile reset karein?")) return;
+      saveBottom(Object.assign({}, defaultBottom));
+      renderBottom();
+    }
+
+    if(saveNameBottomBtn) saveNameBottomBtn.addEventListener("click", saveBottomName);
+    if(changeAvatarBottomBtn) changeAvatarBottomBtn.addEventListener("click", ()=> avatarBottomFileInput.click());
+    if(avatarBottomFileInput) avatarBottomFileInput.addEventListener("change", handleBottomAvatarChange);
+    if(viewProfileBtn) viewProfileBtn.addEventListener("click", viewProfile);
+    if(resetProfileBtn) resetProfileBtn.addEventListener("click", resetProfile);
+
+    try{ renderBottom(); }catch(e){}
+  })();
+
+  /* ---------- Multiplayer: joinGameRoom (exposed on window) ---------- */
+  window.joinGameRoom = function joinGameRoom(roomId, asColor){
+    if(!roomId) return;
+    
+    // Cleanup old room first
+    if(multiplayerRoomId && window.webrtcStopCall) window.webrtcStopCall(multiplayerRoomId);
+    if(multiplayerMovesListener) multiplayerMovesListener.off();
+
+    isMultiplayer = true;
+    multiplayerRoomId = roomId;
+    multiplayerColor = (asColor === 'white' || asColor === 'w') ? 'w' : 'b';
+
+    const database = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+    if(!database) {
+      console.error('Firebase DB not available for multiplayer.');
+      onlineStatus.textContent = 'Multiplayer failed: DB unavailable';
+      return;
+    }
+
+    const roomRef = database.ref('games/' + roomId);
+    
+    // PRO MAX UPGRADE: Initial load and continuous sync of board state
+    roomRef.on('value', snapshot => {
+      const room = snapshot.val();
+      if(!room) {
+        console.error('Room not found or deleted:', roomId);
+        onlineStatus.textContent = 'Multiplayer room closed.';
+        isMultiplayer = false;
+        if(videoCallContainer) videoCallContainer.classList.remove('active');
+        return;
+      }
+      
+      let playerA = room.players.white;
+      let playerB = room.players.black;
+      
+      const myId = loadMyId();
+      let remotePlayer = null;
+
+      if (multiplayerColor === 'w') {
+          remotePlayer = playerB;
+      } else {
+          remotePlayer = playerA;
+      }
+
+      // PRO MAX UPGRADE: Update remote player UI instantly
+      if (remotePlayer && remotePlayer.gameId) {
+          // Check for profile changes in the gameIds database (for rating/XP)
+          database.ref('gameIds/' + remotePlayer.gameId).once('value', profileSnap => {
+              const profile = profileSnap.val();
+              if (profile) {
+                   window.updateRemotePlayerUI({ 
+                       name: profile.name, 
+                       rating: profile.rating, 
+                       level: profile.level, 
+                       photoURL: profile.photoURL,
+                       gameId: remotePlayer.gameId // Fallback 
+                   });
+              } else {
+                   // Fallback on what's stored in the game room itself
+                   window.updateRemotePlayerUI(remotePlayer);
+              }
+          });
+      } else {
+           window.updateRemotePlayerUI(remotePlayer); // Show minimal info
+      }
+
+      // Sync FEN state
+      if(room.fen && game.fen() !== room.fen) {
+        try {
+          game.load(room.fen);
+          lastMove = null; // Cannot determine last move from FEN sync
+          selectedSquare = null;
+          clearHighlights();
+          drawBoard();
+        } catch(e){
+          console.warn('Failed to load FEN during sync.', e);
+          game.reset();
+        }
+      }
+      
+      // Handle turn switch/UI updates
+      updateStatus();
+      updateActiveTimerHighlight();
+    });
+
+    // PRO MAX UPGRADE: Only listen to new moves added (since FEN listener handles board state sync)
+    // Removed direct listener on /moves/{moveId} to avoid complex local/remote move logic.
+    // The roomRef.on('value') listener above already handles the board state synchronization via FEN.
+    
+    console.log('Joined multiplayer room', roomId, 'as', multiplayerColor === 'w' ? 'White' : 'Black');
+    onlineStatus.textContent = 'Joined room ' + roomId + ' as ' + (multiplayerColor==='w'?'White':'Black') + '. Voice/Video Starting...';
+
+    // *** PRO MAX UPGRADE: Auto-start WebRTC based on color ***
+    if(multiplayerColor === 'b' && window.webrtcStartCallAsCaller) {
+      // Black (Accepter) starts the call as Caller (initiator)
+      window.webrtcStartCallAsCaller(roomId).catch(e => console.warn('webrtc caller start failed', e));
+    } else if (multiplayerColor === 'w' && window.webrtcJoinCallAsAnswerer) {
+      // White (Inviter) joins the call as Answerer (receiver)
+       window.webrtcJoinCallAsAnswerer(roomId).catch(e => console.warn('webrtc answerer join failed', e));
+    }
+  };
+
+  // ---------------------------
+  // Mic/Video Button handlers 
+  // ---------------------------
+  function setMicState(buttonEl, isOn){
+    if(!buttonEl) return;
+    buttonEl.setAttribute('aria-pressed', String(!!isOn));
+    const dot = buttonEl.querySelector('.dot');
+    const label = buttonEl.querySelector('.mic-label');
+    if(isOn){
+      buttonEl.classList.remove('mic-off'); buttonEl.classList.add('mic-on');
+      if(dot) dot.style.background = getComputedStyle(document.documentElement).getPropertyValue('--mic-on');
+      if(label) label.textContent = 'Mic On';
+      buttonEl.title = 'Mic on — click to turn off';
+    } else {
+      buttonEl.classList.remove('mic-on'); buttonEl.classList.add('mic-off');
+      if(dot) dot.style.background = getComputedStyle(document.documentElement).getPropertyValue('--mic-off');
+      if(label) label.textContent = 'Mic Off';
+      buttonEl.title = 'Mic off — click to turn on';
+    }
+  }
+
+  // Initialize mic buttons and attach click handlers
+  const micTopBtn = document.getElementById('micTopBtn');
+  const micBottomBtn = document.getElementById('micBottomBtn');
+
+  // store in localStorage simple preference so UI persists on reload
+  function micStorageKey(id){ return 'chess_mic_state_' + id; }
+
+  function initMicButton(buttonEl, storageKey){
+    if(!buttonEl) return;
+    let state = false;
+    try{
+      const saved = localStorage.getItem(storageKey);
+      state = saved === '1';
+    }catch(e){}
+    setMicState(buttonEl, state);
+    buttonEl.addEventListener('click', ()=>{
+      const current = buttonEl.getAttribute('aria-pressed') === 'true';
+      const next = !current;
+      setMicState(buttonEl, next);
+      try{ localStorage.setItem(storageKey, next ? '1' : '0'); }catch(e){}
+
+      // PRO MAX UPGRADE: Voice Control Logic
+      if(isMultiplayer && multiplayerRoomId) {
+          if (window.webrtcToggleMic) {
+              window.webrtcToggleMic(multiplayerRoomId, next);
+              onlineStatus.textContent = (next ? 'Microphone ON' : 'Microphone OFF') + ' for room: ' + multiplayerRoomId;
+          } else {
+             onlineStatus.textContent = 'Voice Chat functions unavailable (WebRTC logic missing).';
+          }
+      } else {
+          onlineStatus.textContent = (next ? 'Microphone ON' : 'Microphone OFF') + ' (local UI only)';
+      }
+    });
+  }
+
+  window.addEventListener("load", ()=>{
+    drawBoard();
+    resetTimer();
+    updateStatsUI();
+    initMyId();
+
+    // init mic toggles
+    initMicButton(micTopBtn, micStorageKey('top'));
+    initMicButton(micBottomBtn, micStorageKey('bottom'));
+  });
+  window.addEventListener("resize", ()=> drawBoard());
+  </script>
+
+  <script>
+  // =============================================================
+  // WebRTC Video Call Signaling and Media Logic (PRO MAX UPGRADE)
+  // =============================================================
+  (async function(){
+    if(typeof firebase === 'undefined' || !firebase.database) {
+      console.warn('Firebase DB required for WebRTC signaling');
+      return;
+    }
+    const rtcDb = firebase.database();
+
+    // Keep small per-room state
+    const rtcState = {}; // rtcState[roomId] = { pc, localStream, listenersRef, audioTracks, videoTracks }
+    const localVideoEl = document.getElementById('localVideo');
+    const videoCallContainer = document.getElementById('videoCallContainer');
+    
+    let isCameraActive = false; // Flag to track if camera is initialized
+
+    // Helper: create RTCPeerConnection with basic handlers
+    function createPeerConnection(roomId){
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: ['stun:stun.l.google.com:19302'] }
+        ]
+      });
+
+      pc.onicecandidate = event => {
+        if(!event.candidate) return;
+        const msg = { type:'candidate', candidate: JSON.stringify(event.candidate), ts: Date.now() };
+        rtcDb.ref('webrtc_signaling/' + roomId).push(msg).catch(()=>{});
+      };
+
+      pc.ontrack = event => {
+        // Handle remote video and audio tracks
+        let remoteVideo = document.querySelector('#webrtc_remote_video_' + roomId);
+        if(!remoteVideo){
+            // Create remote video element inside the container
+            remoteVideo = document.createElement('video');
+            remoteVideo.id = 'webrtc_remote_video_' + roomId;
+            remoteVideo.className = 'remote-video';
+            remoteVideo.autoplay = true;
+            remoteVideo.playsInline = true;
+            videoCallContainer.appendChild(remoteVideo);
+
+            // Hide/Show video container based on remote track
+            event.streams[0].onremovetrack = () => {
+                // If the stream ends, remove the video element and hide container if no audio either
+                remoteVideo.remove();
+                if(!document.querySelector('#webrtc_remote_video_' + roomId + ', #webrtc_remote_audio_' + roomId)) {
+                   videoCallContainer.classList.remove('active');
+                }
+            };
+        }
+        
+        if (event.track.kind === 'video') {
+            remoteVideo.srcObject = event.streams[0];
+            videoCallContainer.classList.add('active'); // Show container when video arrives
+        } else if (event.track.kind === 'audio') {
+            // Handle audio tracks separately (hidden audio element)
+            let audio = document.querySelector('#webrtc_remote_audio_' + roomId);
+            if(!audio){
+              audio = document.createElement('audio');
+              audio.id = 'webrtc_remote_audio_' + roomId;
+              audio.autoplay = true;
+              audio.playsInline = true;
+              audio.style.display = 'none';
+              document.body.appendChild(audio);
+            }
+            audio.srcObject = event.streams[0];
+        }
+      };
+
+      return pc;
+    }
+
+    // Start local camera and microphone capture (returns MediaStream)
+    async function getLocalStream(){
+        if(isCameraActive) {
+             return localVideoEl.srcObject;
+        }
+      try{
+        const constraints = { video: true, audio: true }; // PRO MAX: Request Video and Audio
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        // Display local stream in the small preview box
+        localVideoEl.srcObject = stream;
+        isCameraActive = true;
+        
+        // Hide/disable video if the button is OFF
+        const videoToggleBtn = document.getElementById('videoToggleBtn');
+        const isVideoOn = videoToggleBtn ? videoToggleBtn.textContent.includes('ON') : false;
+        if (stream.getVideoTracks().length > 0) {
+             stream.getVideoTracks().forEach(track => track.enabled = isVideoOn);
+        }
+        
+        return stream;
+      }catch(e){
+        console.error('getUserMedia failed (Video/Audio permission denied or unavailable)', e);
+        const onlineStatus = document.getElementById('onlineStatus');
+        if (onlineStatus) onlineStatus.textContent = 'Video/Voice chat requires permissions.';
+        throw e;
+      }
+    }
+
+    // Listen for signalling messages for this room
+    function listenSignaling(roomId){
+      const ref = rtcDb.ref('webrtc_signaling/' + roomId);
+      ref.off('child_added');
+
+      const onChild = ref.on('child_added', snapshot => {
+        const msg = snapshot.val();
+        if(!msg || !rtcState[roomId]) return;
+        try {
+          if(msg.type === 'offer') {
+            handleRemoteOffer(roomId, msg);
+          } else if(msg.type === 'answer') {
+            handleRemoteAnswer(roomId, msg);
+          } else if(msg.type === 'candidate') {
+            const cand = JSON.parse(msg.candidate);
+            rtcState[roomId].pc.addIceCandidate(cand).catch(e=>console.warn('addIceCandidate err',e));
+          }
+        } catch(e){
+          console.warn('signaling message error', e);
+        }
+      });
+      return { ref, onChild };
+    }
+
+    async function handleRemoteOffer(roomId, msg){
+      const st = rtcState[roomId];
+      if(!st) return;
+      try{
+        await st.pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(msg.sdp)));
+        const answer = await st.pc.createAnswer();
+        await st.pc.setLocalDescription(answer);
+        const reply = { type:'answer', sdp: JSON.stringify(st.pc.localDescription), ts: Date.now() };
+        await rtcDb.ref('webrtc_signaling/' + roomId).push(reply);
+      }catch(e){
+        console.error('handleRemoteOffer error', e);
+      }
+    }
+
+    async function handleRemoteAnswer(roomId, msg){
+      const st = rtcState[roomId];
+      if(!st) return;
+      try{
+        await st.pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(msg.sdp)));
+      }catch(e){
+        console.error('handleRemoteAnswer error', e);
+      }
+    }
+
+    // Helper to setup call
+    async function setupCall(roomId){
+        if(rtcState[roomId]) return;
+        
+        const localStream = await getLocalStream();
+        const pc = createPeerConnection(roomId);
+        localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+        const audioTracks = localStream.getAudioTracks();
+        const videoTracks = localStream.getVideoTracks();
+        
+        // Mute/Unmute audio/video based on UI buttons state
+        const micTopBtn = document.getElementById('micTopBtn');
+        const isMicOn = micTopBtn ? micTopBtn.getAttribute('aria-pressed') === 'true' : false;
+        const videoToggleBtn = document.getElementById('videoToggleBtn');
+        const isVideoOn = videoToggleBtn ? videoToggleBtn.textContent.includes('ON') : false;
+
+        if(audioTracks.length > 0) audioTracks[0].enabled = isMicOn; 
+        if(videoTracks.length > 0) videoTracks[0].enabled = isVideoOn; 
+
+        rtcState[roomId] = { pc, localStream, listenersRef: null, audioTracks, videoTracks };
+        rtcState[roomId].listenersRef = listenSignaling(roomId);
+        
+        // If local video is ON, show the local box
+        if (isVideoOn) {
+             videoCallContainer.classList.add('active'); 
+        }
+
+        return pc;
+    }
+
+
+    // Public: start voice/video call as caller (create offer)
+    window.webrtcStartCallAsCaller = async function(roomId){
+      if(!roomId) throw new Error('roomId required');
+      const pc = await setupCall(roomId);
+      if(!pc) return; // Setup failed
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      const msg = { type:'offer', sdp: JSON.stringify(pc.localDescription), ts: Date.now() };
+      await rtcDb.ref('webrtc_signaling/' + roomId).push(msg);
+
+      console.log('WebRTC Call started as Caller for room:', roomId);
+      const onlineStatus = document.getElementById('onlineStatus');
+      if (onlineStatus) onlineStatus.textContent = 'Voice/Video Chat Connected (Waiting for Answer)';
+    };
+
+    // Public: join call as answerer (waits for offer; function ensures stream & pc exist)
+    window.webrtcJoinCallAsAnswerer = async function(roomId){
+      if(!roomId) throw new Error('roomId required');
+      await setupCall(roomId);
+      // Answerer now waits for the remote 'offer' message (handled by listenSignaling -> handleRemoteOffer)
+      
+      console.log('WebRTC Call joined as Answerer for room:', roomId);
+      const onlineStatus = document.getElementById('onlineStatus');
+      if (onlineStatus) onlineStatus.textContent = 'Voice/Video Chat Connected (Waiting for Offer)';
+    };
+
+    // Public: Toggle local mic (mute/unmute)
+    window.webrtcToggleMic = function(roomId, enable){
+        const st = rtcState[roomId];
+        if(!st || !st.audioTracks || st.audioTracks.length === 0){
+            console.warn('WebRTC Mic toggle failed: No audio tracks for room', roomId);
+            return;
+        }
+        st.audioTracks.forEach(t => { t.enabled = !!enable; });
+        console.log('Mic state set to:', enable ? 'ON' : 'OFF');
+    }
+    
+    // Public: Toggle local video (on/off)
+    window.webrtcToggleVideo = function(roomId, enable){
+        const st = rtcState[roomId];
+        if(!st || !st.videoTracks || st.videoTracks.length === 0){
+            console.warn('WebRTC Video toggle failed: No video tracks for room', roomId);
+            return;
+        }
+        st.videoTracks.forEach(t => { t.enabled = !!enable; });
+        
+        // Show/hide local video container
+        if(enable) {
+             videoCallContainer.classList.add('active');
+        } else if (!document.querySelector('#webrtc_remote_video_' + roomId)) {
+             // Only hide if remote video is not present
+             videoCallContainer.classList.remove('active');
+        }
+        
+        console.log('Video state set to:', enable ? 'ON' : 'OFF');
+    }
+
+    // Stop and cleanup
+    window.webrtcStopCall = function(roomId){
+      const st = rtcState[roomId];
+      if(!st) return;
+      try{
+        // PRO MAX UPGRADE: Turn off Firebase Listener before closing
+        const db = firebase.database();
+        db.ref('webrtc_signaling/' + roomId).off('child_added', st.listenersRef.onChild);
+      }catch(e){}
+      
+      try{ st.pc.close(); }catch(e){}
+      
+      // Stop media tracks only if no other active calls are using the stream (Complex check, so commenting out for simplicity)
+      // try{ st.localStream.getTracks().forEach(t=>t.stop()); }catch(e){}
+      
+      // Clean up UI elements
+      const remoteVid = document.querySelector('#webrtc_remote_video_' + roomId);
+      if(remoteVid) remoteVid.remove();
+      const a1 = document.querySelector('#webrtc_remote_audio_' + roomId);
+      if(a1) a1.remove();
+      
+      videoCallContainer.classList.remove('active');
+      
+      delete rtcState[roomId];
+      console.log('WebRTC Call stopped for room:', roomId);
+    };
+
+    console.log('WebRTC Video/Voice signaling initialized.');
+  })();
+  </script>
+  
+<div id="inviteOverlay">
+  <div id="invitePopup">
+    <h2>गेम इनवाइट</h2>
+    <div class="invite-info">कृपया प्रतीक्षा करें...</div>
+    <p>क्या आप इस गेम में शामिल होना चाहते हैं?</p>
+    <div>
+      <button id="acceptBtn">एक्सेप्ट</button>
+      <button id="declineBtn">डिक्लाइन</button>
+    </div>
+  </div>
+</div>
+
+</body>
+<script type="module">
+  import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  const db = getFirestore();
+
+  const requestId = "request_1"; // अभी test के लिए
+  const requestRef = doc(db, "requests", requestId);
+
+  // ✅ ACCEPT
+  document.getElementById("acceptBtn").addEventListener("click", async () => {
+    await updateDoc(requestRef, {
+      status: "accepted"
+    });
+
+    console.log("✅ Accepted");
+    alert("Game accepted, room creating...");
+    
+    // 👉 यहाँ room create करने का code आएगा (next step)
+  });
+
+  // ❌ DECLINE
+  document.getElementById("declineBtn").addEventListener("click", async () => {
+    await updateDoc(requestRef, {
+      status: "declined"
+    });
+
+    console.log("❌ Declined");
+    alert("Invite declined");
+  });
+</script>
+</html>
